@@ -8,7 +8,9 @@ export const keyFor = (base, network = "spec_desk", ref = SLOT) => `nsdeploy-lin
 export function readBinding(storage, base) {
   try {
     const stored = storage.getItem(keyFor(base));
-    return stored ? peerTarget(stored).url.href : "";
+    if (!stored) return "";
+    const { url } = peerTarget(stored);
+    return url.origin === new URL(base).origin ? "" : url.href;
   } catch { return ""; }
 }
 
@@ -26,11 +28,12 @@ export function applyBinding(engine, storage) {
   const net = engine.top.network;
   const stored = readBinding(storage, engine.top.base);
   const publisher = engine._publisherDefault ??= net.getLink(SLOT);
-  const target = stored || publisher;
+  const visitorChoice = !!stored && stored !== publisher;
+  const target = visitorChoice ? stored : publisher;
   if (!net.linkSlots.has(SLOT)) throw new Error(`'${SLOT}' is not a declared link slot.`);
   if (engine._visitorPlannerOrigin) engine.runtimeAllowedPeers.delete(engine._visitorPlannerOrigin);
   net.setLink(SLOT, target);
-  engine._visitorPlannerOrigin = stored ? new URL(stored).origin : null;
+  engine._visitorPlannerOrigin = visitorChoice ? new URL(stored).origin : null;
   if (engine._visitorPlannerOrigin) engine.runtimeAllowedPeers.add(engine._visitorPlannerOrigin);
-  return { target, publisher, visitorChoice: !!stored };
+  return { target, publisher, visitorChoice };
 }

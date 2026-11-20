@@ -5,8 +5,16 @@ import { fetchPeerArtifact, peerTarget, runtimeArtifactUrl } from "../../../shar
 export function installPeerBoundary(engine, slot, transport = globalThis) {
   const fetch = transport.fetch.bind(transport);
   const runTurn = engine.runTurn.bind(engine);
+  const resolveLink = engine.resolveLink.bind(engine);
   const resolveRemote = engine.resolveRemote.bind(engine);
   let active = false;
+
+  // The page has already applied the effective binding. The stock resolver
+  // would persist the publisher default and admit its origin before consent.
+  engine.resolveLink = (reference, network, ...args) => {
+    if (network === engine.top.network && reference === slot) return network.getLink(slot);
+    return resolveLink(reference, network, ...args);
+  };
 
   engine.resolveRemote = (ref, ...args) => {
     const selected = peerTarget(engine.top.network.getLink(slot)).url.href;
