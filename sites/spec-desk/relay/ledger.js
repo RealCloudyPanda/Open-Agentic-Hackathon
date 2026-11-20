@@ -7,7 +7,7 @@ export const FIELDS = [
   { key: "platform", label: "Platform" },
   { key: "customer_name", label: "Customer", private: true },
   { key: "internal_notes", label: "Internal notes", private: true },
-  { key: "feature_request", label: "Feature request", private: true, note: "Sent only as the request text you see on the consent card." },
+  { key: "feature_request", label: "Feature request", private: true, note: "May appear in the request text shown on the consent card." },
 ];
 
 export function allowRule(networkConfig) {

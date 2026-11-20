@@ -40,7 +40,8 @@ function renderLedger() {
   $("#ledger").innerHTML = rows.map((r) => {
     const raw = r.generated ? "generated from your intake when you run" : values[r.key] || "(empty)";
     const masked = r.private && !revealed.has(r.key) && values[r.key];
-    const pillText = { crosses: "Crosses", kept: "Kept here by you", never: "Never leaves" }[r.state];
+    const pillText = r.key === "feature_request" && r.state === "never" ? "Request text only"
+      : { crosses: "Crosses", kept: "Kept here by you", never: "Never leaves" }[r.state];
     return `<li>
       ${r.toggleable ? `<input type="checkbox" data-k="${r.key}" ${r.state === "crosses" ? "checked" : ""} aria-label="Share ${esc(r.label)} with the planner">` : "<span></span>"}
       <span><span class="k">${r.key}</span> · ${esc(r.label)}</span>
@@ -202,7 +203,7 @@ async function runRelay() {
     const d = await consentCard({
       origin: info.peerOrigin,
       purpose: `Load the published network <code>${esc(hostOf(binding.target) === info.peerOrigin ? binding.target.split("/").pop() : info.peerLabel)}</code> from <code>${esc(new URL(binding.target).origin)}</code> and run it in this browser to turn your acceptance criteria into a test plan.`,
-      requestText: info.requestText, crossing, staying, withheld, routerHost: booted.routerHost,
+      requestText: info.requestText, crossing, staying: staying.filter((k) => k !== "feature_request"), withheld, routerHost: booted.routerHost,
     });
     consentLog.push({ origin: info.peerOrigin, decision: d === "allow" ? "allowed" : "declined", time: new Date().toLocaleTimeString() });
     li.className = d === "allow" ? "done" : "stop";
