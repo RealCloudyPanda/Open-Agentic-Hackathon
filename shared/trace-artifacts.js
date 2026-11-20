@@ -1,11 +1,11 @@
 // Turn runtime trace events into the artifacts and the boundary receipt the page shows.
 // Pure functions over trace.events; never reads values the runtime already redacted.
 
-export function artifactsFrom(events, { since = -1 } = {}) {
+export function artifactsFrom(events, { since = -1, localOrigin = "" } = {}) {
   const ev = events.filter((e) => (e.seq ?? 0) > since);
   const ends = (kind) => ev.filter((e) => e.kind === kind && e.phase === "end");
-  const toolEnd = (name) => ends("tool_call").find((e) => e.tool === name && e.status === "ok");
-  const drafter = toolEnd("CriteriaDrafter");
+  const toolEnd = (name, origin = "") => ends("tool_call").find((e) => e.tool === name && e.status === "ok" && (!origin || e.origin === origin));
+  const drafter = toolEnd("CriteriaDrafter", localOrigin);
   const criteria = rows(drafter?.result?.criteria) ? { ...drafter.result, origin: drafter.origin } : null;
 
   let plan = null;

@@ -108,9 +108,12 @@ function step(text, cls = "done", detail = "") {
 function onTrace(e) {
   const ev = e.detail;
   if (ev.kind === "agent" && ev.phase === "start" && ev.agent === "criteria_writer") step("Drafting criteria <span class='mono'>(Spec Desk, in your browser)</span>", "wait");
-  if (ev.kind === "tool_call" && ev.phase === "end" && ev.tool === "CriteriaDrafter") {
+  if (ev.kind === "tool_call" && ev.phase === "end" && ev.tool === "CriteriaDrafter" && ev.origin === location.host && ev.status === "ok") {
     tl.lastElementChild?.classList.replace("wait", "done");
     step(`Drafted ${ev.result?.criteria?.length ?? 0} acceptance criteria`);
+    if (Array.isArray(ev.result?.criteria)) {
+      $("#results").innerHTML = criteriaCard({ ...ev.result, origin: ev.origin });
+    }
   }
   if (ev.kind === "remote_fetch" && ev.phase === "start") pendingSteps.set(ev.id, step(`Fetching published files from ${esc(ev.peerOrigin)}`, "wait"));
   if (ev.kind === "remote_fetch" && ev.phase === "end") {
@@ -198,11 +201,14 @@ async function runRelay() {
   const withheld = Object.fromEntries(staying.filter((k) => k !== "feature_request").map((k) => [k, values[k]]));
   const consentLog = [];
   const peerConsent = async (info) => {
+    const { criteria } = artifactsFrom(trace.events, { since, localOrigin: location.host });
     const li = step(`Waiting for your consent to contact ${esc(info.peerOrigin)}`, "wait");
     const d = await consentCard({
       origin: info.peerOrigin,
       purpose: `Load the published network <code>${esc(hostOf(binding.target) === info.peerOrigin ? binding.target.split("/").pop() : info.peerLabel)}</code> from <code>${esc(new URL(binding.target).origin)}</code> and run it in this browser to turn your acceptance criteria into a test plan.`,
-      requestText: info.requestText, crossing, staying: staying.filter((k) => k !== "feature_request"), withheld, routerHost: booted.routerHost,
+      requestText: info.requestText,
+      crossing: criteria ? crossing : crossing.filter((k) => k !== "acceptance_criteria"),
+      staying: staying.filter((k) => k !== "feature_request"), withheld, routerHost: booted.routerHost,
     });
     consentLog.push({ origin: info.peerOrigin, decision: d === "allow" ? "allowed" : "declined", time: new Date().toLocaleTimeString() });
     li.className = d === "allow" ? "done" : "stop";
@@ -218,7 +224,7 @@ async function runRelay() {
     trace.removeEventListener("event", onTrace);
   }
   const events = trace.events.filter((e) => e.seq > since);
-  const { criteria, plan, receipt, peerAnswer } = artifactsFrom(trace.events, { since });
+  const { criteria, plan, receipt, peerAnswer } = artifactsFrom(trace.events, { since, localOrigin: location.host });
   const out = [];
   if (criteria) out.push(criteriaCard(criteria));
   if (plan) out.push(planCard(plan));
