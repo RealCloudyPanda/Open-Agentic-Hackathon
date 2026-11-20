@@ -4,7 +4,31 @@
 
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-export async function checkPeer(url, { fetch: f = globalThis.fetch, runtime, contract = {} } = {}) {
+export function peerTarget(value) {
+  const url = new URL(value);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && LOOPBACK.has(url.hostname))) {
+    throw new Error("Use HTTPS (HTTP only on loopback).");
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error("Use a network URL without credentials, a query, or a fragment.");
+  }
+  url.pathname = url.pathname.replace(/\/+$/, "");
+  const name = url.pathname.split("/").pop();
+  if (!name) throw new Error("Last path segment must be the network name.");
+  return { url, name, base: new URL("./", url) };
+}
+
+export async function fetchPeerArtifact(fetch, origin, href, options = {}) {
+  const url = new URL(href);
+  if (url.origin !== origin || url.username || url.password) {
+    throw new Error("Published artifacts must stay on the approved peer origin.");
+  }
+  return fetch(url.href, { ...options, credentials: "omit", redirect: "error" });
+}
+
+/** @param {{fetch?: typeof fetch, runtime?: any, contract?: {sends_sly_data?: string[], requires_sly_data?: string[]}}} [options] */
+export async function checkPeer(url, options = {}) {
+  const { fetch: f = globalThis.fetch, runtime, contract = {} } = options;
   const results = [];
   const add = (n, name, level, detail) => results.push({ n, name, level, detail });
   const done = () => {
@@ -14,33 +38,37 @@ export async function checkPeer(url, { fetch: f = globalThis.fetch, runtime, con
     return { url, verdict: fails ? "Not compatible" : warns ? "Compatible with warnings" : "Compatible", ok: !fails, results };
   };
 
-  let u;
-  try { u = new URL(url); } catch { add(1, "Network URL", "fail", "Not a complete http(s) URL."); return done(); }
-  const name = u.pathname.split("/").filter(Boolean).pop() || "";
-  const httpsOk = u.protocol === "https:" || (u.protocol === "http:" && LOOPBACK.has(u.hostname));
-  if (!name || !httpsOk) { add(1, "Network URL", "fail", !name ? "Last path segment must be the network name." : "Use https (http only on loopback)."); return done(); }
+  let target;
+  try { target = peerTarget(url); } catch (e) { add(1, "Network URL", "fail", e.message); return done(); }
+  const { name, base } = target;
+  url = target.url.href;
+  const read = (href) => fetchPeerArtifact(f, base.origin, href);
   add(1, "Network URL", "pass", `Network name '${name}'.`);
-  const base = new URL("./", u).href.replace(/\/$/, "");
 
   let manifest;
+  const manifestUrl = new URL("agent-manifest.json", base).href;
   try {
-    const r = await f(`${base}/agent-manifest.json`, { credentials: "omit" });
+    const r = await read(manifestUrl);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     manifest = await r.json();
-    add(2, "Manifest readable (CORS)", "pass", `${base}/agent-manifest.json`);
-  } catch (e) { add(2, "Manifest readable (CORS)", "fail", `Could not read ${base}/agent-manifest.json: ${e.message}`); return done(); }
+    add(2, "Manifest readable (CORS)", "pass", manifestUrl);
+  } catch (e) { add(2, "Manifest readable (CORS)", "fail", `Could not read ${manifestUrl}: ${e.message}`); return done(); }
 
-  const nets = Array.isArray(manifest.networks) ? manifest.networks : [];
-  const shapeOk = nets.length && nets.every((n) => n.name && n.front_man && n.hocon) && manifest.llm_router;
-  add(3, "Manifest shape", shapeOk ? (manifest.peer_policy ? "pass" : "warn") : "fail", shapeOk ? (manifest.peer_policy ? "networks, llm_router and peer policy present." : "No peer_policy.") : "networks[].name/front_man/hocon and llm_router are required.");
+  const nets = Array.isArray(manifest?.networks) ? manifest.networks : [];
+  const shapeOk = nets.length && nets.every((n) => ["name", "front_man", "hocon"].every((key) => typeof n?.[key] === "string" && n[key]))
+    && new Set(nets.map((n) => n.name)).size === nets.length
+    && typeof manifest.llm_router?.base_url === "string"
+    && ["open", "closed"].includes(manifest.peer_policy?.mode)
+    && Array.isArray(manifest.allowed_peers) && manifest.allowed_peers.every((origin) => typeof origin === "string");
+  add(3, "Manifest shape", shapeOk ? "pass" : "fail", shapeOk ? "Networks, router and peer policy present." : "Expected unique networks with name/front_man/hocon, a router and peer policy.");
+  if (!shapeOk) return done();
   const entry = nets.find((n) => n.name === name);
   if (!entry) { add(4, "Exact network name", "fail", `No published network named '${name}'. Published: ${nets.map((n) => n.name).join(", ") || "none"}.`); return done(); }
   add(4, "Exact network name", "pass", `'${name}' found; front agent '${entry.front_man}'.`);
 
   let net, config;
   try {
-    const href = new URL(entry.hocon, `${base}/`).href;
-    const r = await f(href, { credentials: "omit" });
+    const r = await read(runtimeArtifactUrl(base, entry.hocon));
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const text = await r.text();
     if (/^\s*include\b/m.test(text) || /\$\{[^}]*\}/.test(text)) { add(6, "Data-only", "fail", "Includes or substitutions found."); return done(); }
@@ -57,8 +85,16 @@ export async function checkPeer(url, { fetch: f = globalThis.fetch, runtime, con
   const hasReq = fspec.function?.parameters?.properties?.request?.type === "string";
   add(7, "Front agent", front !== entry.front_man ? "fail" : fspec.function?.description && hasReq ? "pass" : "warn", `${front}${hasReq ? " takes a request string" : " has no request string input"}.`);
 
-  try { const r = await f(`${base}/links.json`, { credentials: "omit" }); if (!r.ok) throw 0; await r.json(); add(8, "links.json", "pass", "Present and parseable."); }
-  catch { add(8, "links.json", "warn", "Missing or unreadable."); }
+  try {
+    const r = await read(new URL("links.json", base).href);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const links = await r.json();
+    if (links?.version !== 1 || !isRecord(links.networks) ||
+        !Object.values(links.networks).every((bindings) => isRecord(bindings) && Object.values(bindings).every((value) => typeof value === "string"))) {
+      throw new Error("Expected a version 1 network binding map.");
+    }
+    add(8, "links.json", "pass", "Present with a version 1 binding map.");
+  } catch (e) { add(8, "links.json", "warn", e.message); }
 
   const reads = new Set((config.tools || []).flatMap((t) => t.allow?.to_downstream?.sly_data || []));
   const sends = contract.sends_sly_data || [];
@@ -69,9 +105,26 @@ export async function checkPeer(url, { fetch: f = globalThis.fetch, runtime, con
 
   const ct = manifest.coded_tools;
   const usesCode = (config.tools || []).some((t) => t.class);
-  add(10, "Coded tools", usesCode && !ct?.bundle ? "fail" : ct?.bundle && !/^sha(256|384|512)-/.test(ct.integrity || "") ? "warn" : "pass",
-    ct?.bundle ? `${ct.bundle}${ct.integrity ? " with SRI digest" : " without SRI digest"}; runs in your sandboxed worker.` : "None.");
+  try {
+    if (usesCode && !ct?.bundle) throw new Error("The network needs a coded-tool bundle.");
+    if (ct?.bundle) {
+      const bundle = await read(runtimeArtifactUrl(base, ct.bundle));
+      if (!bundle.ok) throw new Error(`Bundle HTTP ${bundle.status}`);
+      await bundle.body?.cancel();
+    }
+    const hasDigest = /^sha(256|384|512)-[A-Za-z0-9+/]+=*$/.test(ct?.integrity || "");
+    add(10, "Coded tools", ct?.bundle && !hasDigest ? "warn" : "pass",
+      ct?.bundle ? `${ct.bundle} is readable${hasDigest ? " and declares an SRI digest" : " but lacks a supported SRI digest"}.` : "None.");
+  } catch (e) { add(10, "Coded tools", "fail", e.message); }
   add(11, "Its next hops", "info", (manifest.allowed_peers || []).length ? `May contact: ${manifest.allowed_peers.join(", ")} (you are asked again).` : "Calls no other sites.");
   add(12, "Model hint", "info", `${config.llm_config?.model_name || "none"}; it runs on your router regardless.`);
   return done();
+}
+
+const isRecord = (value) => value && typeof value === "object" && !Array.isArray(value);
+
+// Match the reference runtime's prefixing of paths relative to a nested site base.
+function runtimeArtifactUrl(base, file) {
+  if (typeof file !== "string") throw new Error("Artifact path must be a string.");
+  return /^https?:\/\//i.test(file) ? file : new URL(file.replace(/^\//, "./"), base).href;
 }
