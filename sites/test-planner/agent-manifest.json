@@ -1,0 +1,8 @@
+{
+  "brand": "Test Planner",
+  "networks": [{ "name": "test_planner", "front_man": "planning_lead", "hocon": "./test_planner.network.json", "description": "Spike peer." }],
+  "llm_router": { "base_url": "browser://mock", "mock": true, "byok_router": "https://openrouter.ai/api/v1" },
+  "allowed_peers": [],
+  "peer_policy": { "mode": "closed", "deny_origins": [], "note": "Calls no other sites." },
+  "deployment": { "mode": "static", "self_contained_runtime": true, "browser_mock": true, "direct_byok": true }
+}

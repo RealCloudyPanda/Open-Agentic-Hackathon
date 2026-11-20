@@ -1,2 +1,9 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>spec-desk</title></head><body><h1>spec-desk</h1></body></html>
+<html lang="en"><head><meta charset="utf-8"><title>Spec Desk</title></head>
+<body><h1>Spec Desk</h1><div id="agent-app"></div>
+<script type="module">
+const { boot } = await import("/runtime/index.js");
+const booted = await boot("#agent-app", { originUrl: location.origin, sandboxWorkerUrl: new URL("/runtime/sandbox-worker.js", location.origin).href });
+window.__spike = booted;
+document.body.dataset.ready = "1";
+</script></body></html>

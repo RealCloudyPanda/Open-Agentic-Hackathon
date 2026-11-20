@@ -1,0 +1,1 @@
+{ "version": 1, "networks": { "spec_desk": { "test_planner": "http://localhost:5174/test_planner" } } }

@@ -1,0 +1,15 @@
+{
+  "metadata": { "description": "Spike caller." },
+  "llm_config": { "model_name": "openai/gpt-5-mini" },
+  "max_steps": 8,
+  "link_slots": { "test_planner": { "description": "Turns acceptance criteria into a test plan." } },
+  "tools": [
+    {
+      "name": "spec_lead",
+      "function": { "description": "Spike front agent.", "parameters": { "type": "object", "properties": { "request": { "type": "string" } }, "required": ["request"] } },
+      "instructions": "Call test_planner, then summarise.",
+      "allow": { "to_downstream": { "sly_data": ["acceptance_criteria", "feature_title", "platform"] } },
+      "tools": ["test_planner"]
+    }
+  ]
+}
