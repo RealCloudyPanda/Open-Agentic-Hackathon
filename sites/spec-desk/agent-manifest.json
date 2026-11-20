@@ -27,6 +27,20 @@
     "direct_byok": true
   },
   "coded_tools": {
-    "bundle": "./tools/criteria-drafter.js"
+    "bundle": "./tools/criteria-drafter.js",
+    "integrity": "sha256-WZy7gUrnxWqojZsov3PsYbai0X5g9bnf0RARK4BxrCU="
+  },
+  "linking": {
+    "protocol": "nsdeploy-link/v1",
+    "exports": [],
+    "imports": [
+      {
+        "reference": "test_planner",
+        "network": "spec_desk"
+      }
+    ],
+    "link_updates": {
+      "mode": "browser-local"
+    }
   }
 }

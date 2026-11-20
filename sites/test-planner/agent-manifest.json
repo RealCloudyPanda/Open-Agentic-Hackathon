@@ -26,6 +26,7 @@
     "direct_byok": true
   },
   "coded_tools": {
-    "bundle": "./tools/plan-builder.js"
+    "bundle": "./tools/plan-builder.js",
+    "integrity": "sha256-6WmcdM9YJ9MRKbLdVkHeierOSb+0s1pvM6xPqKi9DHk="
   }
 }

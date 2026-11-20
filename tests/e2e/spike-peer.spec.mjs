@@ -36,7 +36,7 @@ test("allow: consent precedes contact, then the peer's files load without creden
   for (const p of ["/agent-manifest.json", "/test_planner.network.json", "/links.json"]) expect(paths).toContain(p);
   expect(peerLogs().every((e) => e.auth === "no" && e.cookies === "none")).toBe(true);
   expect(answer).toContain("(mock");
-  expect(answer).toContain("I have no grounded tool output"); // the peer helper's mock text, relayed back
+  expect(answer).toContain("\"origin\":\"localhost:5174\""); // the peer's answer, relayed back
 });
 
 test("decline: zero requests to the peer", async ({ page }) => {
