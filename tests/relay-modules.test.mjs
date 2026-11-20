@@ -25,6 +25,8 @@ test("unticked fields are omitted from slyData", () => {
 test("leak guard", () => {
   assert.deepEqual(findLeaks("Plan for ACME docs please", { customer_name: "Acme Docs", internal_notes: "abc" }), ["customer_name"]);
   assert.deepEqual(findLeaks("Plan please", { customer_name: "Acme Docs" }), []);
+  assert.deepEqual(findLeaks("Plan for Bob", { customer_name: "bob" }), ["customer_name"]);
+  assert.deepEqual(findLeaks("Plan for bobcats", { customer_name: "Bob" }), []);
 });
 
 test("binding never writes links.json and refuses non-slots", async () => {

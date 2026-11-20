@@ -11,7 +11,6 @@ async function open(page) {
   logs.length = 0;
   await page.goto("http://127.0.0.1:5173/");
   await page.waitForSelector("body[data-ready='1']");
-  logs.length = 0;
 }
 
 test("relay: consent before contact, allowed keys only, no credentials", async ({ page }) => {
@@ -27,7 +26,9 @@ test("relay: consent before contact, allowed keys only, no credentials", async (
   expect(last.plan.received_fields).toEqual(["acceptance_criteria", "feature_title", "platform"]);
   expect(last.plan.origin).toBe("localhost:5174");
   expect(last.criteria.origin).toBe("127.0.0.1:5173");
-  expect(peer("test-planner").length).toBeGreaterThan(0);
+  expect(peer("test-planner").map((entry) => entry.path).sort()).toEqual([
+    "/agent-manifest.json", "/links.json", "/test_planner.network.json", "/tools/plan-builder.js",
+  ]);
   expect(peer("test-planner").every((e) => e.auth === "no" && e.cookies === "none")).toBe(true);
 });
 
@@ -51,6 +52,18 @@ test("decline: nothing reaches the peer", async ({ page }) => {
   expect(peer("test-planner")).toHaveLength(0);
 });
 
+test("a short customer name in the request blocks approval", async ({ page }) => {
+  await open(page);
+  await page.locator('[name="customer_name"]').fill("Bob");
+  await page.locator('[name="feature_request"]').fill("Add undo for Bob.");
+  await page.click("#run");
+  await expect(page.locator("#consent .guard")).toContainText("customer_name");
+  await expect(page.locator("#consent [data-d=allow]")).toBeDisabled();
+  await page.click("#consent [data-d=decline]");
+  await page.waitForSelector(".receipt");
+  expect(peer("test-planner")).toHaveLength(0);
+});
+
 test("swap by URL: wrong name refused, Risk Radar used, links.json untouched", async ({ page }) => {
   await open(page);
   await page.click("#swap-btn");
@@ -59,16 +72,20 @@ test("swap by URL: wrong name refused, Risk Radar used, links.json untouched", a
   await page.click("#consent [data-d=allow]");
   await expect(page.locator(".verdict")).toHaveText("Not compatible");
   await expect(page.locator("#use-btn")).toBeDisabled();
-  await page.click(".pick >> nth=0");
+  await page.fill("#swap-url", "http://[::1]:5175/risk_test_planner/");
   await page.click("#check-btn");
+  await expect(page.locator("#consent-title")).toContainText("[::1]:5175");
+  expect(peer("risk-radar")).toHaveLength(0);
   await page.click("#consent [data-d=allow]");
   await expect(page.locator(".verdict")).toContainText("Compatible");
   await page.click("#use-btn");
   await page.reload();
   await page.waitForSelector("body[data-ready='1']");
   await expect(page.locator("#slot-owner")).toContainText("your choice");
+  const checkedReads = peer("risk-radar").length;
   await page.click("#run");
   await expect(page.locator("#consent-title")).toContainText("[::1]:5175");
+  expect(peer("risk-radar")).toHaveLength(checkedReads);
   await page.click("#consent [data-d=allow]");
   await page.waitForSelector(".receipt");
   const last = await page.evaluate(() => window.__relay.last);
