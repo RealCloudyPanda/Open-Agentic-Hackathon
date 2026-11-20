@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+logs/
+coverage/
+test-results/
+playwright-report/
+.env
+.env.*
+*.local
+.vscode/
+.idea/
