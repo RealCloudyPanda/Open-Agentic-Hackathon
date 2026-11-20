@@ -54,7 +54,7 @@ test("traversal refused", async () => {
 test("risk radar listens on IPv6 loopback", async () => {
   const r = await get("risk-radar", "/");
   assert.equal(r.status, 200);
-  assert.match(r.body, /risk-radar/);
+  assert.match(r.body, /Risk Radar/);
 });
 
 test("log line has flags, not values", async () => {
