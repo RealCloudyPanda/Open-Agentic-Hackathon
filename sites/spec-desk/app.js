@@ -5,6 +5,7 @@ import { artifactsFrom, redactedTrace } from "/shared/trace-artifacts.js";
 import { checkPeer, peerTarget } from "/shared/peer-check.js";
 import { allowRule, ledgerRows, buildSlyData, findLeaks } from "./relay/ledger.js";
 import { applyBinding, saveBinding, resetBinding, SLOT } from "./relay/binding.js";
+import { installPeerBoundary } from "./relay/peer-boundary.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -29,6 +30,7 @@ let contract = { sends_sly_data: [], requires_sly_data: ["acceptance_criteria"] 
 let booted = null;
 let binding = null;
 let running = false;
+let publicFetch;
 
 const intake = () => Object.fromEntries(Object.keys(SAMPLE).map((k) => [k, form.elements[k].value.trim()]));
 
@@ -179,8 +181,6 @@ async function runRelay() {
   binding = applyBinding(engine, localStorage);
   renderSlot();
   engine.resetHistory();
-  engine.consent.clear();
-  engine.registry = new engine.registry.constructor({ trace });
   tl.innerHTML = "";
   $("#results").innerHTML = "";
   const since = trace.events.at(-1)?.seq ?? -1;
@@ -190,6 +190,7 @@ async function runRelay() {
   const staying = Object.keys(SAMPLE).filter((k) => !crossing.includes(k));
   const withheld = Object.fromEntries(staying.filter((k) => k !== "feature_request").map((k) => [k, values[k]]));
   const consentLog = [];
+  const consoleConsent = engine.onConsent;
   engine.onConsent = async (info) => {
     const li = step(`Waiting for your consent to contact ${esc(info.peerOrigin)}`, "wait");
     const d = await consentCard({
@@ -208,6 +209,7 @@ async function runRelay() {
   } catch (err) {
     step("The run stopped", "stop", esc(err.message));
   } finally {
+    engine.onConsent = consoleConsent;
     trace.removeEventListener("event", onTrace);
   }
   const events = trace.events.filter((e) => e.seq > since);
@@ -250,6 +252,7 @@ $("#check-btn").addEventListener("click", async () => {
   try {
     ({ url } = peerTarget($("#swap-url").value.trim()));
     origin = url.origin;
+    if (origin === location.origin) throw new Error("Choose a planner on a separate origin.");
   } catch (error) {
     $("#check-out").innerHTML = `<p class="verdict">${esc(error.message)}</p>`;
     return;
@@ -261,7 +264,7 @@ $("#check-btn").addEventListener("click", async () => {
   $("#check-out").innerHTML = `<p class="hint">Checking…</p>`;
   try {
     const runtime = await import("/runtime/index.js");
-    const report = await checkPeer(url.href, { runtime, contract });
+    const report = await checkPeer(url.href, { runtime, contract, fetch: publicFetch });
     if (version !== checkVersion) return;
     checked = report;
     $("#check-out").innerHTML = `<p class="verdict">${report.verdict}</p><ul class="checks">${report.results.map((r) => `<li><span class="lv ${r.level}">${r.level}</span><span><b>${r.n}. ${esc(r.name)}</b> — ${esc(r.detail)}</span></li>`).join("")}</ul>`;
@@ -297,6 +300,7 @@ if (booted) {
   const imp = (booted.engine.top.manifest.linking?.imports || []).find((i) => i.reference === SLOT);
   contract = imp?.["x-spec-relay-contract"] || contract;
   binding = applyBinding(booted.engine, localStorage);
+  publicFetch = installPeerBoundary(booted.engine, SLOT);
   window.__relay.booted = booted;
   $("#run").disabled = false;
   $("#swap-btn").disabled = false;

@@ -18,12 +18,14 @@ export function peerTarget(value) {
   return { url, name, base: new URL("./", url) };
 }
 
+/** @param {RequestInit} [options] */
 export async function fetchPeerArtifact(fetch, origin, href, options = {}) {
+  const { cache, signal } = options;
   const url = new URL(href);
   if (url.origin !== origin || url.username || url.password) {
     throw new Error("Published artifacts must stay on the approved peer origin.");
   }
-  return fetch(url.href, { ...options, credentials: "omit", redirect: "error" });
+  return fetch(url.href, { cache, signal, credentials: "omit", redirect: "error" });
 }
 
 /** @param {{fetch?: typeof fetch, runtime?: any, contract?: {sends_sly_data?: string[], requires_sly_data?: string[]}}} [options] */
@@ -60,8 +62,10 @@ export async function checkPeer(url, options = {}) {
     && typeof manifest.llm_router?.base_url === "string"
     && ["open", "closed"].includes(manifest.peer_policy?.mode)
     && Array.isArray(manifest.allowed_peers) && manifest.allowed_peers.every((origin) => typeof origin === "string");
-  add(3, "Manifest shape", shapeOk ? "pass" : "fail", shapeOk ? "Networks, router and peer policy present." : "Expected unique networks with name/front_man/hocon, a router and peer policy.");
-  if (!shapeOk) return done();
+  add(3, "Manifest shape", shapeOk && !manifest.actions ? "pass" : "fail",
+    !shapeOk ? "Expected unique networks with name/front_man/hocon, a router and peer policy."
+      : manifest.actions ? "Planner action bridges are outside this slot's consent." : "Networks, router and peer policy present.");
+  if (!shapeOk || manifest.actions) return done();
   const entry = nets.find((n) => n.name === name);
   if (!entry) { add(4, "Exact network name", "fail", `No published network named '${name}'. Published: ${nets.map((n) => n.name).join(", ") || "none"}.`); return done(); }
   add(4, "Exact network name", "pass", `'${name}' found; front agent '${entry.front_man}'.`);
@@ -124,7 +128,7 @@ export async function checkPeer(url, options = {}) {
 const isRecord = (value) => value && typeof value === "object" && !Array.isArray(value);
 
 // Match the reference runtime's prefixing of paths relative to a nested site base.
-function runtimeArtifactUrl(base, file) {
+export function runtimeArtifactUrl(base, file) {
   if (typeof file !== "string") throw new Error("Artifact path must be a string.");
-  return /^https?:\/\//i.test(file) ? file : new URL(file.replace(/^\//, "./"), base).href;
+  return /^https?:\/\//i.test(file) ? file : base.href + file.replace(/^\//, "");
 }
