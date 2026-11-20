@@ -10,6 +10,7 @@ export async function checkPeer(url, { fetch: f = globalThis.fetch, runtime, con
   const done = () => {
     const fails = results.filter((r) => r.level === "fail").length;
     const warns = results.filter((r) => r.level === "warn").length;
+    results.sort((a, b) => a.n - b.n);
     return { url, verdict: fails ? "Not compatible" : warns ? "Compatible with warnings" : "Compatible", ok: !fails, results };
   };
 
