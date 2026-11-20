@@ -1,2 +1,29 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>test-planner</title></head><body><h1>test-planner</h1></body></html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Planner · Spec Relay</title><link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="/shared/tokens.css"><link rel="stylesheet" href="/shared/planner.css">
+<style>:root { --site: #1E4F8A; }</style></head>
+<body>
+<header class="top"><div><h1>Test Planner</h1><p>Turns acceptance criteria into a case-by-case test plan.</p></div>
+<div class="meta"><span class="badge" id="mode">Starting runtime…</span><span class="stamp">localhost:5174 · this site</span></div></header>
+<main>
+  <section class="col">
+    <h2>Acceptance criteria</h2>
+    <label class="label" for="criteria">One per line, e.g. "AC-1: …"</label>
+    <textarea id="criteria" rows="8" class="mono"></textarea>
+    <button class="btn primary" id="run" type="button" disabled>Run Test Planner</button>
+    <h2>Published network</h2>
+    <p>This network is published at the URL below. Other agent sites can load it and run it in their visitors' browsers, on the visitor's own model router.</p>
+    <div class="pub"><code id="net-url"></code><button class="btn ghost" id="copy" type="button">Copy</button></div>
+    <p class="label">Public files (CORS enabled)</p><ul class="files" id="files"></ul>
+  </section>
+  <section class="col" aria-live="polite"><h2>Result</h2><div id="out"><p class="card">Run the network to see the result here. Sample mode needs no AI key.</p></div></section>
+</main>
+<details class="drawer"><summary>Runtime console — the reference nsDeploy runtime's own chat and settings</summary><div class="console" id="agent-app"></div></details>
+<footer class="site">Part of Spec Relay. Calls no other sites. No web fonts and no third-party requests unless you agree.</footer>
+<script type="module">
+import { plannerPage } from "/shared/planner-page.js";
+plannerPage({ network: "test_planner", sample: "AC-1: Undo reverts my most recent edit\nAC-2: Redo reapplies an edit I undid\nAC-3: Undo reverts only my own edits" });
+</script>
+</body></html>
