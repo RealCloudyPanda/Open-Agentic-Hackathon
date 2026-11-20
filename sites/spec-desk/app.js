@@ -8,7 +8,7 @@ import { applyBinding, saveBinding, resetBinding, SLOT } from "./relay/binding.j
 import { installPeerBoundary } from "./relay/peer-boundary.js";
 
 const $ = (s, el = document) => el.querySelector(s);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const esc = (s) => (s != null && typeof s !== "object" ? String(s) : "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const hostOf = (u) => { try { return new URL(u).host; } catch { return u; } };
 
 const SAMPLE = {
@@ -141,12 +141,12 @@ function criteriaCard(c) {
     </tbody></table></div></article>`;
 }
 function planCard(p) {
-  const recv = `<p class="received">Fields it received: <code>${esc(Array.isArray(p.received_fields) ? p.received_fields.join(", ") || "none" : "unreported")}</code></p>`;
+  const recv = `<p class="received">Fields it received: <code>${Array.isArray(p.received_fields) ? p.received_fields.map(esc).join(", ") || "none" : "unreported"}</code></p>`;
   if (p.kind === "risk_plan") {
     return `<article class="card art enter" aria-label="Risk plan">
       <header><h3>Risk matrix and charters</h3>${stamp(p.origin, p.origin === "[::1]:5175" ? " · Risk Radar" : "")}</header>
       <div class="tablewrap"><table><thead><tr><th>Risk</th><th>Area</th><th>Impact × likelihood</th><th>Criteria</th></tr></thead><tbody>
-      ${p.risks.map((r) => `<tr><td class="id">${esc(r.id)} ${esc(r.priority)}</td><td>${esc(r.area)}</td><td class="id">${esc(r.impact)} × ${esc(r.likelihood)} = ${esc(r.score)}</td><td class="id">${esc(r.criteria.join(" "))}</td></tr>`).join("")}
+      ${p.risks.map((r) => `<tr><td class="id">${esc(r.id)} ${esc(r.priority)}</td><td>${esc(r.area)}</td><td class="id">${esc(r.impact)} × ${esc(r.likelihood)} = ${esc(r.score)}</td><td class="id">${r.criteria.map(esc).join(" ")}</td></tr>`).join("")}
       </tbody></table></div>
       <div class="tablewrap"><table><thead><tr><th>Charter</th><th>Mission</th><th>Timebox</th></tr></thead><tbody>
       ${p.charters.map((c) => `<tr><td class="id">${esc(c.id)}</td><td>${esc(c.mission)}</td><td class="id">${esc(c.timebox_min)} min</td></tr>`).join("")}
@@ -162,6 +162,9 @@ function planCard(p) {
 }
 function receiptCard(r, consentLog, events) {
   const decision = consentLog.map((c) => `${c.decision} ${c.origin} at ${c.time}`).join("; ") || "no contact requested";
+  let traceText;
+  try { traceText = JSON.stringify(redactedTrace(events), null, 1); }
+  catch { traceText = "Raw trace unavailable because a tool returned data that cannot be represented as JSON."; }
   return `<article class="card art receipt enter" aria-label="Boundary receipt">
     <header><h3>Boundary receipt</h3>${stamp(location.host, " · recorded here")}</header>
     <dl>
@@ -175,7 +178,7 @@ function receiptCard(r, consentLog, events) {
       <dt>Authorization to peer</dt><dd>${r.authorizationSentToPeer}</dd>
       ${r.errors.length ? `<dt>Errors</dt><dd>${esc(r.errors.join(" | "))}</dd>` : ""}
     </dl>
-    <details><summary>Raw trace (redacted)</summary><pre>${esc(JSON.stringify(redactedTrace(events), null, 1))}</pre></details>
+    <details><summary>Raw trace (redacted)</summary><pre>${esc(traceText)}</pre></details>
   </article>`;
 }
 
