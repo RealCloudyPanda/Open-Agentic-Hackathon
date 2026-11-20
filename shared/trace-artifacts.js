@@ -6,14 +6,17 @@ export function artifactsFrom(events, { since = -1 } = {}) {
   const ends = (kind) => ev.filter((e) => e.kind === kind && e.phase === "end");
   const toolEnd = (name) => ends("tool_call").find((e) => e.tool === name && e.status === "ok");
   const drafter = toolEnd("CriteriaDrafter");
-  const criteria = drafter ? { origin: drafter.origin, ...drafter.result } : null;
+  const criteria = rows(drafter?.result?.criteria) ? { ...drafter.result, origin: drafter.origin } : null;
 
   let plan = null;
   const pb = toolEnd("PlanBuilder");
   const rp = toolEnd("RiskProfiler");
   const cb = toolEnd("CharterBuilder");
-  if (pb) plan = { kind: "test_plan", origin: pb.origin, ...pb.result };
-  else if (rp) plan = { kind: "risk_plan", origin: rp.origin, risks: rp.result.risks, received_fields: rp.result.received_fields, charters: cb?.result?.charters || [] };
+  if (rows(pb?.result?.plan?.cases) && Array.isArray(pb.result.plan.platform_notes)) {
+    plan = { ...pb.result, kind: "test_plan", origin: pb.origin };
+  } else if (rows(rp?.result?.risks) && rp.result.risks.every((row) => Array.isArray(row.criteria))) {
+    plan = { kind: "risk_plan", origin: rp.origin, risks: rp.result.risks, received_fields: rp.result.received_fields, charters: rows(cb?.result?.charters) ? cb.result.charters : [] };
+  }
 
   const fetches = ends("remote_fetch");
   const requests = ev.filter((e) => e.kind === "peer_artifact");
@@ -35,8 +38,13 @@ export function artifactsFrom(events, { since = -1 } = {}) {
     notes,
     authorizationSentToPeer: "no (public artifact requests omit credentials)",
   };
-  return { criteria, plan, receipt };
+  const peerAnswer = callEnd?.status === "ok" && callEnd.responsePreview
+    ? { origin: callEnd.peerOrigin, text: callEnd.responsePreview }
+    : null;
+  return { criteria, plan, receipt, peerAnswer };
 }
+
+const rows = (value) => Array.isArray(value) && value.every((row) => row && typeof row === "object");
 
 /** Deep copy of events with any sly_data values replaced (belt and braces). */
 export function redactedTrace(events) {

@@ -133,26 +133,26 @@ function criteriaCard(c) {
   return `<article class="card art enter" aria-label="Acceptance criteria">
     <header><h3>Acceptance criteria</h3>${stamp(c.origin, " · Spec Desk")}</header>
     <div class="tablewrap"><table><thead><tr><th>ID</th><th>Criterion</th><th>Priority</th></tr></thead><tbody>
-    ${c.criteria.map((x) => `<tr><td class="id">${x.id}</td><td>${esc(x.title)}<div class="gwt">Given ${esc(x.given)}; when ${esc(x.when)}; then ${esc(x.then)}.</div></td><td class="id">${x.priority}</td></tr>`).join("")}
+    ${c.criteria.map((x) => `<tr><td class="id">${esc(x.id)}</td><td>${esc(x.title)}<div class="gwt">Given ${esc(x.given)}; when ${esc(x.when)}; then ${esc(x.then)}.</div></td><td class="id">${esc(x.priority)}</td></tr>`).join("")}
     </tbody></table></div></article>`;
 }
 function planCard(p) {
-  const recv = `<p class="received">Fields it received: <code>${(p.received_fields || []).join(", ") || "none"}</code></p>`;
+  const recv = `<p class="received">Fields it received: <code>${esc(Array.isArray(p.received_fields) ? p.received_fields.join(", ") || "none" : "unreported")}</code></p>`;
   if (p.kind === "risk_plan") {
     return `<article class="card art enter" aria-label="Risk plan">
-      <header><h3>Risk matrix and charters</h3>${stamp(p.origin, " · Risk Radar")}</header>
+      <header><h3>Risk matrix and charters</h3>${stamp(p.origin, p.origin === "[::1]:5175" ? " · Risk Radar" : "")}</header>
       <div class="tablewrap"><table><thead><tr><th>Risk</th><th>Area</th><th>Impact × likelihood</th><th>Criteria</th></tr></thead><tbody>
-      ${p.risks.map((r) => `<tr><td class="id">${r.id} ${r.priority}</td><td>${esc(r.area)}</td><td class="id">${r.impact} × ${r.likelihood} = ${r.score}</td><td class="id">${r.criteria.join(" ")}</td></tr>`).join("")}
+      ${p.risks.map((r) => `<tr><td class="id">${esc(r.id)} ${esc(r.priority)}</td><td>${esc(r.area)}</td><td class="id">${esc(r.impact)} × ${esc(r.likelihood)} = ${esc(r.score)}</td><td class="id">${esc(r.criteria.join(" "))}</td></tr>`).join("")}
       </tbody></table></div>
       <div class="tablewrap"><table><thead><tr><th>Charter</th><th>Mission</th><th>Timebox</th></tr></thead><tbody>
-      ${p.charters.map((c) => `<tr><td class="id">${c.id}</td><td>${esc(c.mission)}</td><td class="id">${c.timebox_min} min</td></tr>`).join("")}
+      ${p.charters.map((c) => `<tr><td class="id">${esc(c.id)}</td><td>${esc(c.mission)}</td><td class="id">${esc(c.timebox_min)} min</td></tr>`).join("")}
       </tbody></table></div>${recv}</article>`;
   }
   const cases = p.plan.cases;
   return `<article class="card art enter" aria-label="Test plan">
-    <header><h3>Test plan · ${cases.length} cases</h3>${stamp(p.origin, " · Test Planner")}</header>
+    <header><h3>Test plan · ${cases.length} cases</h3>${stamp(p.origin, p.origin === "localhost:5174" ? " · Test Planner" : "")}</header>
     <div class="tablewrap"><table><thead><tr><th>Case</th><th>Covers</th><th>Type</th><th>Level</th><th>Priority</th></tr></thead><tbody>
-    ${cases.map((c) => `<tr><td class="id">${c.id}</td><td class="id">${c.criterion}</td><td>${c.type}</td><td>${c.level}</td><td class="id">${c.priority}</td></tr>`).join("")}
+    ${cases.map((c) => `<tr><td class="id">${esc(c.id)}</td><td class="id">${esc(c.criterion)}</td><td>${esc(c.type)}</td><td>${esc(c.level)}</td><td class="id">${esc(c.priority)}</td></tr>`).join("")}
     </tbody></table></div>
     <p class="received">${p.plan.platform_notes.map(esc).join(" ")}</p>${recv}</article>`;
 }
@@ -219,10 +219,11 @@ async function runRelay() {
     trace.removeEventListener("event", onTrace);
   }
   const events = trace.events.filter((e) => e.seq > since);
-  const { criteria, plan, receipt } = artifactsFrom(trace.events, { since });
+  const { criteria, plan, receipt, peerAnswer } = artifactsFrom(trace.events, { since });
   const out = [];
   if (criteria) out.push(criteriaCard(criteria));
   if (plan) out.push(planCard(plan));
+  else if (peerAnswer) out.push(`<article class="card art enter"><header><h3>Planner reply excerpt</h3>${stamp(peerAnswer.origin)}</header><p>${esc(peerAnswer.text)}</p></article>`);
   out.push(receiptCard(receipt, consentLog, events));
   step("Receipt written");
   $("#results").innerHTML = out.join("");
