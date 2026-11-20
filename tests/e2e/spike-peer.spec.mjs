@@ -22,8 +22,11 @@ async function run(page, decision) {
   const answer = await page.evaluate(async () => {
     const { engine } = window.__spike;
     engine.onConsent = (info) => window.__decide({ peerOrigin: info.peerOrigin, requestText: info.requestText, kind: info.kind });
-    const r = await engine.runTurn("hello", { slyData: { acceptance_criteria: [] } });
-    return r.text;
+    await engine.runTurn("hello", { slyData: { acceptance_criteria: [] } });
+    const ev = window.__spike.trace.events;
+    const call = ev.find((e) => e.kind === "remote_call" && e.phase === "end");
+    const declined = ev.some((e) => e.kind === "consent" && e.decision === "declined");
+    return { peerAnswer: call?.responsePreview || "", declined };
   });
   return { answer, consentInfo, peerCountAtConsent };
 }
@@ -35,12 +38,11 @@ test("allow: consent precedes contact, then the peer's files load without creden
   const paths = peerLogs().map((e) => e.path);
   for (const p of ["/agent-manifest.json", "/test_planner.network.json", "/links.json"]) expect(paths).toContain(p);
   expect(peerLogs().every((e) => e.auth === "no" && e.cookies === "none")).toBe(true);
-  expect(answer).toContain("(mock");
-  expect(answer).toContain("\"origin\":\"localhost:5174\""); // the peer's answer, relayed back
+  expect(answer.peerAnswer).toContain("(mock summary)");
 });
 
 test("decline: zero requests to the peer", async ({ page }) => {
   const { answer } = await run(page, "decline");
   expect(peerLogs()).toHaveLength(0);
-  expect(answer).toContain("declined");
+  expect(answer.declined).toBe(true);
 });

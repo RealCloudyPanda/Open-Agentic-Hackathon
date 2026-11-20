@@ -5,7 +5,14 @@
       "name": "spec_desk",
       "front_man": "spec_lead",
       "hocon": "./spec_desk.network.json",
-      "description": "Spike."
+      "description": "Turns a feature request into acceptance criteria, then hands them to a test planner you choose.",
+      "tags": [
+        "spec-relay",
+        "caller"
+      ],
+      "sample_queries": [
+        "Add undo and redo to our collaborative document editor."
+      ]
     }
   ],
   "llm_router": {
@@ -18,29 +25,58 @@
   ],
   "peer_policy": {
     "mode": "closed",
-    "deny_origins": []
-  },
-  "deployment": {
-    "mode": "static",
-    "self_contained_runtime": true,
-    "browser_mock": true,
-    "direct_byok": true
+    "deny_origins": [],
+    "note": "Contacts only the test planner bound to the test_planner slot, after the visitor agrees each time. Visitor-chosen planners are added for that visitor only, after a compatibility check."
   },
   "coded_tools": {
     "bundle": "./tools/criteria-drafter.js",
-    "integrity": "sha256-WZy7gUrnxWqojZsov3PsYbai0X5g9bnf0RARK4BxrCU="
+    "integrity": "sha256-Psgdy6ymhDY4yEDFoB1EMBi4jLhaFmQTKVgbWsJkHFs="
+  },
+  "theme": {
+    "primary": "#B3401A"
   },
   "linking": {
     "protocol": "nsdeploy-link/v1",
-    "exports": [],
+    "exports": [
+      {
+        "network": "spec_desk",
+        "front_man": "spec_lead",
+        "aliases": [
+          "spec_desk",
+          "spec_lead"
+        ],
+        "url": "spec_desk"
+      }
+    ],
     "imports": [
       {
         "reference": "test_planner",
-        "network": "spec_desk"
+        "network": "spec_desk",
+        "description": "Turns acceptance criteria into a test plan.",
+        "x-spec-relay-contract": {
+          "sends_sly_data": [
+            "acceptance_criteria",
+            "feature_title",
+            "platform"
+          ],
+          "requires_sly_data": [
+            "acceptance_criteria"
+          ],
+          "request": "Short natural-language request (no names, no notes).",
+          "expects": "A test plan: cases or charters with priorities."
+        }
       }
     ],
     "link_updates": {
       "mode": "browser-local"
     }
+  },
+  "deployment": {
+    "mode": "static",
+    "self_contained_runtime": true,
+    "browser_mock": true,
+    "direct_byok": true,
+    "direct_mcp_requires_cors": true,
+    "public_mcp_facade": false
   }
 }
