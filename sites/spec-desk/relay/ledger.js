@@ -35,10 +35,16 @@ export function buildSlyData(intake, unticked = new Set()) {
   return out;
 }
 
-/** Leak guard: a withheld value (>= 4 chars, case-insensitive) appearing in the request text. */
+/** Match short values as whole words and longer values as literal text. */
 export function findLeaks(requestText, withheld) {
   const text = String(requestText || "").toLowerCase();
   return Object.entries(withheld)
-    .filter(([, v]) => typeof v === "string" && v.trim().length >= 4 && text.includes(v.trim().toLowerCase()))
+    .filter(([, v]) => {
+      if (typeof v !== "string" || !v.trim()) return false;
+      const value = v.trim().toLowerCase();
+      if (value.length >= 4) return text.includes(value);
+      const literal = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`(?<![\\p{L}\\p{N}])${literal}(?![\\p{L}\\p{N}])`, "u").test(text);
+    })
     .map(([k]) => k);
 }
