@@ -1,0 +1,62 @@
+{
+  "brand": "Risk Radar",
+  "networks": [
+    {
+      "name": "risk_test_planner",
+      "front_man": "risk_lead",
+      "hocon": "./risk_test_planner.network.json",
+      "description": "Turns acceptance criteria into a risk matrix and exploratory test charters.",
+      "tags": [
+        "spec-relay",
+        "planner"
+      ],
+      "sample_queries": [
+        "AC-1: Undo reverts my most recent edit\\nAC-2: Undo reverts only my own edits"
+      ]
+    }
+  ],
+  "llm_router": {
+    "base_url": "browser://mock",
+    "mock": true,
+    "byok_router": "https://openrouter.ai/api/v1"
+  },
+  "allowed_peers": [],
+  "peer_policy": {
+    "mode": "closed",
+    "deny_origins": [],
+    "note": "Calls no other sites."
+  },
+  "coded_tools": {
+    "bundle": "./tools/risk-charter.js",
+    "integrity": "sha256-blQybjaRnKSyY4A/oDegHARcpaMEY18c2IUcVURvMuk="
+  },
+  "theme": {
+    "primary": "#8A5A12"
+  },
+  "linking": {
+    "protocol": "nsdeploy-link/v1",
+    "exports": [
+      {
+        "network": "risk_test_planner",
+        "front_man": "risk_lead",
+        "aliases": [
+          "risk_test_planner",
+          "risk_lead"
+        ],
+        "url": "risk_test_planner"
+      }
+    ],
+    "imports": [],
+    "link_updates": {
+      "mode": "browser-local"
+    }
+  },
+  "deployment": {
+    "mode": "static",
+    "self_contained_runtime": true,
+    "browser_mock": true,
+    "direct_byok": true,
+    "direct_mcp_requires_cors": true,
+    "public_mcp_facade": false
+  }
+}
