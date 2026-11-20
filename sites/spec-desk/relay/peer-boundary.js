@@ -30,6 +30,7 @@ export function installPeerBoundary(engine, slot, transport = globalThis) {
 
     const manifestUrl = new URL("agent-manifest.json", target.base).href;
     const paths = new Set([manifestUrl, new URL("links.json", target.base).href]);
+    const ownBundleUrl = engine.top.bundleUrl && new URL(engine.top.bundleUrl).href;
     const routerUrl = new URL(`${engine.top.llm.baseUrl}/chat/completions`);
     if (routerUrl.origin === target.base.origin) throw new Error("Choose a planner on a separate origin from your AI router.");
     const ask = engine.onConsent;
@@ -48,7 +49,7 @@ export function installPeerBoundary(engine, slot, transport = globalThis) {
     transport.fetch = async (input, options) => {
       const url = new URL(input instanceof Request ? input.url : input, engine.top.base);
       const method = options?.method || (input instanceof Request ? input.method : "GET");
-      if ((method === "GET" && url.href === engine.top.bundleUrl) ||
+      if ((method === "GET" && url.href === ownBundleUrl) ||
           (method === "POST" && url.href === routerUrl.href)) {
         return fetch(input, { ...options, redirect: "error" });
       }
