@@ -1,9 +1,82 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Spec Desk</title></head>
-<body><h1>Spec Desk</h1><div id="agent-app"></div>
-<script type="module">
-const { boot } = await import("/runtime/index.js");
-const booted = await boot("#agent-app", { originUrl: location.origin, sandboxWorkerUrl: new URL("/runtime/sandbox-worker.js", location.origin).href });
-window.__spike = booted;
-document.body.dataset.ready = "1";
-</script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec Desk · Spec Relay</title>
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>Spec Desk</h1>
+    <p class="tag">Hand a spec to another site's agents without handing over your secrets.</p>
+  </div>
+  <div class="meta">
+    <span class="badge" id="mode">Starting runtime…</span>
+    <span class="stamp" style="--stamp:var(--desk)">127.0.0.1:5173 · this site</span>
+  </div>
+</header>
+
+<main class="desk">
+  <section class="col intake" aria-labelledby="intake-h">
+    <div class="sec-h"><h2 id="intake-h">Intake</h2><span class="label">stays in this browser</span></div>
+    <form id="intake" class="card form">
+      <label>Feature request<textarea name="feature_request" rows="3"></textarea></label>
+      <div class="two">
+        <label>Feature title<input name="feature_title"></label>
+        <label>Platform<input name="platform"></label>
+      </div>
+      <label>Customer <span class="priv">private</span><input name="customer_name"></label>
+      <label>Internal notes <span class="priv">private</span><textarea name="internal_notes" rows="2"></textarea></label>
+    </form>
+    <div class="sec-h"><h2>Handoff ledger</h2><span class="label">from the published allow rule</span></div>
+    <ol id="ledger" class="ledger card" aria-live="polite"></ol>
+  </section>
+
+  <section class="col relay" aria-labelledby="relay-h">
+    <div class="sec-h"><h2 id="relay-h">Relay</h2></div>
+    <div class="slot card">
+      <div>
+        <span class="label">Test planner slot</span>
+        <p id="slot-target" class="mono slot-url">…</p>
+        <p id="slot-owner" class="owner"></p>
+      </div>
+      <div class="slot-actions">
+        <button class="btn ghost" id="swap-btn" type="button">Swap</button>
+        <button class="btn ghost" id="reset-btn" type="button" hidden>Reset</button>
+      </div>
+    </div>
+    <button class="btn primary run" id="run" type="button" disabled>Run relay</button>
+    <ol id="timeline" class="timeline" aria-live="polite"></ol>
+    <div id="results"></div>
+  </section>
+</main>
+
+<dialog id="consent" class="sheet modal" aria-labelledby="consent-title"></dialog>
+<dialog id="swap" class="sheet side" aria-labelledby="swap-title">
+  <form method="dialog" class="swap-form" id="swap-form">
+    <h2 id="swap-title" tabindex="-1">Swap the test planner</h2>
+    <p class="hint">This changes the planner for you only. Spec Desk's published files do not change.</p>
+    <label>Network URL<input id="swap-url" class="mono" placeholder="https://planner.example/agents/test_planner" autocomplete="off" spellcheck="false"></label>
+    <div class="picks"><span class="label">Quick pick</span>
+      <button type="button" class="btn ghost pick" data-url="http://[::1]:5175/risk_test_planner">Risk Radar <span class="mono">[::1]:5175/risk_test_planner</span></button>
+      <button type="button" class="btn ghost pick" data-url="http://localhost:5174/test_planner">Test Planner <span class="mono">localhost:5174/test_planner</span></button>
+      <button type="button" class="btn ghost pick" data-url="http://localhost:5174/nope">A wrong name <span class="mono">localhost:5174/nope</span></button>
+    </div>
+    <div class="row"><button type="button" class="btn" id="check-btn">Check compatibility</button><button type="button" class="btn primary" id="use-btn" disabled>Use this planner</button></div>
+    <div id="check-out" aria-live="polite"></div>
+    <div class="row end"><button class="btn ghost" value="close">Close</button></div>
+  </form>
+</dialog>
+
+<details class="drawer" id="drawer">
+  <summary>Runtime console — the reference nsDeploy runtime's own chat and settings</summary>
+  <div class="console" id="agent-app"></div>
+</details>
+<footer class="site">Spec Relay · three origins: <span class="mono">127.0.0.1:5173</span> Spec Desk, <span class="mono">localhost:5174</span> Test Planner, <span class="mono">[::1]:5175</span> Risk Radar. No web fonts and no third-party requests unless you agree.</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>
