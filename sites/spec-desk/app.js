@@ -2,7 +2,7 @@
 // Drives the unmodified reference runtime through its public Engine API.
 import { bootSite } from "/shared/boot-site.js";
 import { artifactsFrom, redactedTrace } from "/shared/trace-artifacts.js";
-import { checkPeer } from "/shared/peer-check.js";
+import { checkPeer, peerTarget } from "/shared/peer-check.js";
 import { allowRule, ledgerRows, buildSlyData, findLeaks } from "./relay/ledger.js";
 import { applyBinding, saveBinding, resetBinding, SLOT } from "./relay/binding.js";
 
@@ -173,6 +173,8 @@ async function runRelay() {
   if (running || !booted) return;
   running = true;
   $("#run").disabled = true;
+  $("#swap-btn").disabled = true;
+  $("#reset-btn").disabled = true;
   const { engine, trace } = booted;
   binding = applyBinding(engine, localStorage);
   renderSlot();
@@ -219,32 +221,63 @@ async function runRelay() {
   window.__relay.last = { criteria, plan, receipt, consentLog };
   running = false;
   $("#run").disabled = false;
+  $("#swap-btn").disabled = false;
+  $("#reset-btn").disabled = false;
 }
 $("#run").addEventListener("click", runRelay);
 
 // ---- swap --------------------------------------------------------------------
 const swap = $("#swap");
 let checked = null;
-$("#swap-btn").addEventListener("click", () => { $("#check-out").innerHTML = ""; $("#use-btn").disabled = true; swap.showModal(); $("#swap-title").focus(); });
-swap.addEventListener("click", (e) => { const u = e.target.closest(".pick")?.dataset.url; if (u) { $("#swap-url").value = u; $("#use-btn").disabled = true; $("#check-out").innerHTML = ""; } });
-$("#swap-url").addEventListener("input", () => { $("#use-btn").disabled = true; });
+let checkVersion = 0;
+function clearCheck() {
+  checkVersion++;
+  checked = null;
+  $("#check-out").replaceChildren();
+  $("#use-btn").disabled = true;
+}
+$("#swap-btn").addEventListener("click", () => { clearCheck(); swap.showModal(); $("#swap-title").focus(); });
+swap.addEventListener("click", (e) => {
+  const url = e.target.closest(".pick")?.dataset.url;
+  if (url) { $("#swap-url").value = url; clearCheck(); }
+});
+$("#swap-url").addEventListener("input", clearCheck);
 $("#check-btn").addEventListener("click", async () => {
-  const url = $("#swap-url").value.trim();
+  clearCheck();
+  const version = checkVersion;
+  let url;
   let origin;
-  try { origin = new URL(url).host; } catch { $("#check-out").innerHTML = `<p class="verdict">Enter a complete http(s) URL.</p>`; return; }
+  try {
+    ({ url } = peerTarget($("#swap-url").value.trim()));
+    origin = url.origin;
+  } catch (error) {
+    $("#check-out").innerHTML = `<p class="verdict">${esc(error.message)}</p>`;
+    return;
+  }
   swap.close();
   const d = await consentCard({ origin, purpose: `Read public files from <code>${esc(origin)}</code> to check compatibility. Nothing is run.`, checker: true, routerHost: booted.routerHost });
   swap.showModal();
   if (d !== "allow") { $("#check-out").innerHTML = `<p class="verdict">Declined. Nothing was read.</p>`; return; }
   $("#check-out").innerHTML = `<p class="hint">Checking…</p>`;
-  const runtime = await import("/runtime/index.js");
-  checked = await checkPeer(url, { runtime, contract });
-  $("#check-out").innerHTML = `<p class="verdict">${checked.verdict}</p><ul class="checks">${checked.results.map((r) => `<li><span class="lv ${r.level}">${r.level}</span><span><b>${r.n}. ${esc(r.name)}</b> — ${esc(r.detail)}</span></li>`).join("")}</ul>`;
-  $("#use-btn").disabled = !checked.ok;
+  try {
+    const runtime = await import("/runtime/index.js");
+    const report = await checkPeer(url.href, { runtime, contract });
+    if (version !== checkVersion) return;
+    checked = report;
+    $("#check-out").innerHTML = `<p class="verdict">${report.verdict}</p><ul class="checks">${report.results.map((r) => `<li><span class="lv ${r.level}">${r.level}</span><span><b>${r.n}. ${esc(r.name)}</b> — ${esc(r.detail)}</span></li>`).join("")}</ul>`;
+    $("#use-btn").disabled = !report.ok;
+  } catch (error) {
+    if (version === checkVersion) $("#check-out").innerHTML = `<p class="verdict">${esc(error.message)}</p>`;
+  }
 });
 $("#use-btn").addEventListener("click", () => {
   if (!checked?.ok) return;
-  saveBinding(localStorage, booted.engine.top.base, checked.url, [...booted.engine.top.network.linkSlots]);
+  try {
+    saveBinding(localStorage, booted.engine.top.base, checked.url, [...booted.engine.top.network.linkSlots]);
+  } catch (error) {
+    $("#check-out").innerHTML = `<p class="verdict">Could not save this planner. ${esc(error.message)}</p>`;
+    return;
+  }
   binding = applyBinding(booted.engine, localStorage);
   renderSlot();
   swap.close();
@@ -252,7 +285,6 @@ $("#use-btn").addEventListener("click", () => {
 });
 $("#reset-btn").addEventListener("click", () => {
   resetBinding(localStorage, booted.engine.top.base);
-  booted.engine.runtimeAllowedPeers.clear();
   binding = applyBinding(booted.engine, localStorage);
   renderSlot();
 });
@@ -267,6 +299,7 @@ if (booted) {
   binding = applyBinding(booted.engine, localStorage);
   window.__relay.booted = booted;
   $("#run").disabled = false;
+  $("#swap-btn").disabled = false;
 }
 renderLedger();
 renderSlot();

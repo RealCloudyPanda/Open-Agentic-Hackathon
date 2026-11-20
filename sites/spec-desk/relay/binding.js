@@ -1,18 +1,20 @@
 // Visitor binding for the test_planner slot. Stored in this browser only, in the runtime's
 // own key format. It never writes links.json: the publisher default stays published.
+import { peerTarget } from "../../../shared/peer-check.js";
 
 export const SLOT = "test_planner";
 export const keyFor = (base, network = "spec_desk", ref = SLOT) => `nsdeploy-link-v1::${base}::${network}::${ref}`;
 
 export function readBinding(storage, base) {
-  try { return storage.getItem(keyFor(base)) || ""; } catch { return ""; }
+  try {
+    const stored = storage.getItem(keyFor(base));
+    return stored ? peerTarget(stored).url.href : "";
+  } catch { return ""; }
 }
 
 export function saveBinding(storage, base, url, slots = [SLOT]) {
   if (!slots.includes(SLOT)) throw new Error(`'${SLOT}' is not a declared link slot.`);
-  const u = new URL(url);
-  if (!["http:", "https:"].includes(u.protocol)) throw new Error("Use an http(s) network URL.");
-  storage.setItem(keyFor(base), u.href.replace(/\/$/, ""));
+  storage.setItem(keyFor(base), peerTarget(url).url.href);
 }
 
 export function resetBinding(storage, base) {
@@ -26,7 +28,9 @@ export function applyBinding(engine, storage) {
   const publisher = engine._publisherDefault ??= net.getLink(SLOT);
   const target = stored || publisher;
   if (!net.linkSlots.has(SLOT)) throw new Error(`'${SLOT}' is not a declared link slot.`);
+  if (engine._visitorPlannerOrigin) engine.runtimeAllowedPeers.delete(engine._visitorPlannerOrigin);
   net.setLink(SLOT, target);
-  if (stored) engine.runtimeAllowedPeers.add(new URL(stored).origin);
+  engine._visitorPlannerOrigin = stored ? new URL(stored).origin : null;
+  if (engine._visitorPlannerOrigin) engine.runtimeAllowedPeers.add(engine._visitorPlannerOrigin);
   return { target, publisher, visitorChoice: !!stored };
 }
