@@ -20,10 +20,10 @@ async function run(page, decision) {
   await page.goto("http://127.0.0.1:5173/");
   await page.waitForSelector("body[data-ready='1']");
   const answer = await page.evaluate(async () => {
-    const { engine } = window.__spike;
+    const { engine } = window.__relay.booted;
     engine.onConsent = (info) => window.__decide({ peerOrigin: info.peerOrigin, requestText: info.requestText, kind: info.kind });
     await engine.runTurn("hello", { slyData: { acceptance_criteria: [] } });
-    const ev = window.__spike.trace.events;
+    const ev = window.__relay.booted.trace.events;
     const call = ev.find((e) => e.kind === "remote_call" && e.phase === "end");
     const declined = ev.some((e) => e.kind === "consent" && e.decision === "declined");
     return { peerAnswer: call?.responsePreview || "", declined };

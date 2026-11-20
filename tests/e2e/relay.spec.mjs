@@ -1,0 +1,81 @@
+import { test, expect } from "@playwright/test";
+import { startServers } from "../../server/serve.mjs";
+
+let srv;
+const logs = [];
+test.beforeAll(async () => { srv = await startServers({ quiet: true, onLog: (e) => logs.push(e) }); });
+test.afterAll(async () => { await srv?.close(); });
+const peer = (site) => logs.filter((e) => e.site === site && e.path !== "/favicon.ico");
+
+async function open(page) {
+  logs.length = 0;
+  await page.goto("http://127.0.0.1:5173/");
+  await page.waitForSelector("body[data-ready='1']");
+  logs.length = 0;
+}
+
+test("relay: consent before contact, allowed keys only, no credentials", async ({ page }) => {
+  await open(page);
+  await page.click("#run");
+  await page.waitForSelector("#consent[open]");
+  expect(peer("test-planner")).toHaveLength(0);
+  await expect(page.locator("#consent-title")).toContainText("localhost:5174");
+  await page.click("#consent [data-d=allow]");
+  await page.waitForSelector(".receipt");
+  const last = await page.evaluate(() => window.__relay.last);
+  expect(last.receipt.slyKeysSent).toEqual(["acceptance_criteria", "feature_title", "platform"]);
+  expect(last.plan.received_fields).toEqual(["acceptance_criteria", "feature_title", "platform"]);
+  expect(last.plan.origin).toBe("localhost:5174");
+  expect(last.criteria.origin).toBe("127.0.0.1:5173");
+  expect(peer("test-planner").length).toBeGreaterThan(0);
+  expect(peer("test-planner").every((e) => e.auth === "no" && e.cookies === "none")).toBe(true);
+});
+
+test("unticking platform keeps it home", async ({ page }) => {
+  await open(page);
+  await page.uncheck('#ledger [data-k="platform"]');
+  await page.click("#run");
+  await page.click("#consent [data-d=allow]");
+  await page.waitForSelector(".receipt");
+  const last = await page.evaluate(() => window.__relay.last);
+  expect(last.receipt.slyKeysSent).toEqual(["acceptance_criteria", "feature_title"]);
+});
+
+test("decline: nothing reaches the peer", async ({ page }) => {
+  await open(page);
+  await page.click("#run");
+  await page.waitForSelector("#consent[open]");
+  await page.keyboard.press("Escape");
+  await page.waitForSelector(".receipt");
+  await expect(page.locator("#timeline")).toContainText("Nothing was sent to localhost:5174");
+  expect(peer("test-planner")).toHaveLength(0);
+});
+
+test("swap by URL: wrong name refused, Risk Radar used, links.json untouched", async ({ page }) => {
+  await open(page);
+  await page.click("#swap-btn");
+  await page.fill("#swap-url", "http://localhost:5174/nope");
+  await page.click("#check-btn");
+  await page.click("#consent [data-d=allow]");
+  await expect(page.locator(".verdict")).toHaveText("Not compatible");
+  await expect(page.locator("#use-btn")).toBeDisabled();
+  await page.click(".pick >> nth=0");
+  await page.click("#check-btn");
+  await page.click("#consent [data-d=allow]");
+  await expect(page.locator(".verdict")).toContainText("Compatible");
+  await page.click("#use-btn");
+  await page.reload();
+  await page.waitForSelector("body[data-ready='1']");
+  await expect(page.locator("#slot-owner")).toContainText("your choice");
+  await page.click("#run");
+  await expect(page.locator("#consent-title")).toContainText("[::1]:5175");
+  await page.click("#consent [data-d=allow]");
+  await page.waitForSelector(".receipt");
+  const last = await page.evaluate(() => window.__relay.last);
+  expect(last.plan.kind).toBe("risk_plan");
+  expect(last.plan.origin).toBe("[::1]:5175");
+  const links = await (await fetch("http://127.0.0.1:5173/links.json")).json();
+  expect(links.networks.spec_desk.test_planner).toBe("http://localhost:5174/test_planner");
+  await page.click("#reset-btn");
+  await expect(page.locator("#slot-target")).toHaveText("localhost:5174/test_planner");
+});

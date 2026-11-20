@@ -12,7 +12,7 @@ async function relay(page) {
   await page.goto("http://127.0.0.1:5173/");
   await page.waitForSelector("body[data-ready='1']");
   return page.evaluate(async (sly) => {
-    const { engine, trace } = window.__spike;
+    const { engine, trace } = window.__relay.booted;
     engine.onConsent = async () => "allow";
     await engine.runTurn("Add undo", { slyData: sly });
     const ev = trace.events;
