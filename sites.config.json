@@ -1,0 +1,7 @@
+{
+  "sites": [
+    { "id": "spec-desk", "folder": "sites/spec-desk", "network": "spec_desk", "host": "127.0.0.1", "listen": "127.0.0.1", "port": 5173, "origin": "http://127.0.0.1:5173", "publicOrigin": "" },
+    { "id": "test-planner", "folder": "sites/test-planner", "network": "test_planner", "host": "localhost", "listen": "127.0.0.1", "port": 5174, "origin": "http://localhost:5174", "publicOrigin": "" },
+    { "id": "risk-radar", "folder": "sites/risk-radar", "network": "risk_test_planner", "host": "[::1]", "listen": "::1", "port": 5175, "origin": "http://[::1]:5175", "publicOrigin": "" }
+  ]
+}
