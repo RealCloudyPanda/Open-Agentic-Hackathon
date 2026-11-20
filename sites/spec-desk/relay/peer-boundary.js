@@ -22,7 +22,9 @@ export function installPeerBoundary(engine, slot, transport = globalThis) {
     return resolveRemote(ref, ...args);
   };
 
-  engine.runTurn = async (...args) => {
+  /** @param {{peerConsent?: (info: any) => Promise<string>, [key: string]: any}} [turnOptions] */
+  engine.runTurn = async (text, turnOptions = {}) => {
+    const { peerConsent, ...options } = turnOptions;
     if (active) throw new Error("Wait for the current Spec Desk turn to finish.");
     const target = peerTarget(engine.top.network.getLink(slot));
     const ownOrigin = new URL(engine.top.base).origin;
@@ -33,7 +35,8 @@ export function installPeerBoundary(engine, slot, transport = globalThis) {
     const ownBundleUrl = engine.top.bundleUrl && new URL(engine.top.bundleUrl).href;
     const routerUrl = new URL(`${engine.top.llm.baseUrl}/chat/completions`);
     if (routerUrl.origin === target.base.origin) throw new Error("Choose a planner on a separate origin from your AI router.");
-    const ask = engine.onConsent;
+    const previousConsent = engine.onConsent;
+    const ask = peerConsent || previousConsent;
     let approved = false;
     engine.consent.clear();
     engine.registry = new engine.registry.constructor({ trace: engine.trace });
@@ -76,12 +79,12 @@ export function installPeerBoundary(engine, slot, transport = globalThis) {
       return response;
     };
     try {
-      return await runTurn(...args);
+      return await runTurn(text, options);
     } finally {
       transport.fetch = original;
-      engine.onConsent = ask;
+      engine.onConsent = previousConsent;
       active = false;
     }
   };
-  return fetch;
+  return { fetch, isActive: () => active };
 }

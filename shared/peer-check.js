@@ -120,7 +120,7 @@ export async function checkPeer(url, options = {}) {
     add(10, "Coded tools", ct?.bundle && !hasDigest ? "warn" : "pass",
       ct?.bundle ? `${ct.bundle} is readable${hasDigest ? " and declares an SRI digest" : " but lacks a supported SRI digest"}.` : "None.");
   } catch (e) { add(10, "Coded tools", "fail", e.message); }
-  add(11, "Its next hops", "info", (manifest.allowed_peers || []).length ? `May contact: ${manifest.allowed_peers.join(", ")} (you are asked again).` : "Calls no other sites.");
+  add(11, "Its next hops", "info", manifest.allowed_peers.length ? `Declared peer origins: ${manifest.allowed_peers.join(", ")}.` : "No peer origins listed.");
   add(12, "Model hint", "info", `${config.llm_config?.model_name || "none"}; it runs on your router regardless.`);
   return done();
 }
