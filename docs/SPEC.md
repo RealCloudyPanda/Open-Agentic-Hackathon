@@ -439,6 +439,11 @@ Record at 1440×900, browser zoom 110 %, terminal on the right third for 1:02–
 
 ## 15. Submission checklist
 
+The [official rules](https://cognizant-agenticweb.devpost.com/rules) require a working public
+site and point to the spec at the start of the submission period. Review the final demo against
+[the opening Profile 0.2](https://raw.githubusercontent.com/cognizant-ai-labs/agentic-web/fd872b9221aeb8ff762b75a5badbf84b23c133cc/docs/worldwide_agentic_web_mvp_spec.md)
+as well as the Profile 0.3 references used in this document.
+
 - [ ] Three sites deployed on three distinct public HTTPS origins; `sites.config.json` public
       URLs filled; `npm run build -- --target public`; `_headers` honoured (CORS + worker CSP)
 - [ ] Public URL of Spec Desk submitted; `agent-manifest.json` reachable with CORS (§3.3)
@@ -447,7 +452,8 @@ Record at 1440×900, browser zoom 110 %, terminal on the right third for 1:02–
 - [ ] Live mode tried once by the owner with a low-limit key; setup deleted afterwards
 - [ ] README complete: hero + ≥ 3 screenshots, Judging → proof table, Known limitations,
       "How this was built" AI disclosure, third-party licence note (Apache-2.0 runtime)
-- [ ] Video < 2:00, narrated by the entrant, uploaded to YouTube (public or unlisted)
+- [ ] Video under two minutes, narrated by the entrant, publicly visible on YouTube, with
+      permission for any third-party trademarks or copyrighted material it contains
 - [ ] Devpost: title, tagline, description, screenshots, video, repo URL, site URL
 - [ ] Optional: open a PR adding Spec Desk, Test Planner and Risk Radar to
       `docs/agentic_websites.md` in the agentic-web repo (owner's decision)

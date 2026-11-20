@@ -5,7 +5,7 @@
 ![Spec Desk after a relay in sample mode: intake, handoff ledger, live timeline and origin-stamped results](docs/images/hero.png)
 
 Spec Relay is three independent open agentic websites, built on the
-[Worldwide Agentic Web MVP spec (Profile 0.3)](https://github.com/cognizant-ai-labs/agentic-web) and its
+[Worldwide Agentic Web MVP spec (Profile 0.3)](https://raw.githubusercontent.com/cognizant-ai-labs/agentic-web/main/docs/worldwide_agentic_web_mvp_spec.md) and its
 unmodified reference browser runtime:
 
 | Site | Local origin | Published network | What it does |
@@ -28,12 +28,12 @@ re-integrating it.
 2. **Spec Desk loads Test Planner's *published* agent network from another origin** and runs it
    locally, on your own model router. A consent card names the origin and the purpose, and shows
    the exact request text, before anything is fetched from that origin.
-3. **A handoff ledger shows which fields cross.** It's computed from Spec Desk's published
-   `allow.to_downstream.sly_data` rule, plus your own unticks. The criteria, title and platform
-   cross. The customer name and internal notes never leave, and the runtime enforces that.
-4. **A boundary receipt proves it afterwards.** It lists the origins contacted, the files fetched,
-   the validation result, the `sly_data` keys sent, which router was used, and confirms no
-   credentials went to the peer. The planner's own result echoes back the fields it received.
+3. **A handoff ledger shows which fields cross.** The runtime's published
+   `allow.to_downstream.sly_data` rule permits the generated criteria and your selected title and
+   platform. It excludes the customer name and internal notes from the peer's structured context.
+4. **A boundary receipt records the handoff.** It lists the peer origin and public files read,
+   validation, the `sly_data` keys passed to the locally running planner, and the active router.
+   The planner's result reports the keys its coded tool received.
 5. **Swap the planner by URL.** A slot-contract compatibility checker reads the candidate's public
    files (it asks first, and runs nothing). If the candidate passes, your choice is stored in this
    browser only. The next run uses Risk Radar on a third origin, a network with a different shape,
@@ -44,7 +44,8 @@ re-integrating it.
 ## The demo moment
 
 Click **Run relay** and the consent card asks to contact `localhost:5174`. Click **Allow** and the
-timeline shows the three published files being fetched and validated, then run in your browser.
+timeline shows the manifest, network definition, link map and tool bundle being fetched. The
+runtime validates the network and executes it in your browser.
 The test plan card is stamped `localhost:5174` and says "Fields it received: acceptance_criteria,
 feature_title, platform". Then click **Swap**, pick Risk Radar, run **Check compatibility**, then
 **Use this planner** and run again. This time the consent card names `[::1]:5175`, and a risk
@@ -68,7 +69,7 @@ flowchart LR
     RT --> SB
   end
   RT -->|own manifest, network, links.json| A[(127.0.0.1:5173<br/>Spec Desk)]
-  RT -. "after consent: manifest, network, tools bundle (CORS, no credentials)" .-> B[(localhost:5174<br/>Test Planner)]
+  RT -. "after consent: manifest, network, links, tools (CORS, no credentials)" .-> B[(localhost:5174<br/>Test Planner)]
   RT -. "after swap + consent" .-> C[(&#91;::1&#93;:5175<br/>Risk Radar)]
   RT -->|model calls only| R{{Your router:<br/>browser://mock or BYOK}}
 ```
@@ -83,6 +84,9 @@ flowchart LR
 - Peer networks always run on the caller's router and key (the runtime's `selectPeerRouter`).
   Only `sly_data` keys named in the caller's front-agent allow rule cross, and each peer coded
   tool gets only the keys its own allow rule names.
+- Spec Desk approves the selected planner origin separately for the compatibility check and
+  for each run. Public artifact reads omit credentials and reject redirects. This slot supports
+  one peer network per turn, with artifacts hosted on that peer's origin.
 - Three host names, not three ports on one host: the runtime mirrors BYOK profiles into
   per-host cookies on loopback, so separate host names keep your key away from the peers.
 
@@ -114,9 +118,11 @@ That lets you watch the peer's side of the boundary.
 Other commands:
 
 ```bash
-npm test                         # unit tests (node --test)
+npm test                         # unit and server tests (node --test)
+npx playwright install chromium  # one-time setup for e2e tests and screenshots
 npm run test:e2e                 # Playwright: relay, decline, untick, swap
 npm run build:networks -- --check  # HOCON -> network JSON + SRI digests are up to date
+npm run build:networks           # regenerate network JSON and digests
 node tools/peer-check.mjs http://localhost:5174/test_planner \
   --slot "http://127.0.0.1:5173/agent-manifest.json#test_planner"   # needs npm start running
 node scripts/screenshots.mjs     # regenerate docs/images
@@ -127,8 +133,8 @@ node scripts/screenshots.mjs     # regenerate docs/images
 | | Sample mode (default) | Live mode |
 | --- | --- | --- |
 | Trigger | No key saved | Key saved in the runtime's own "AI model settings" (open the **Runtime console** drawer) |
-| Router | `browser://mock`, built into the runtime, offline | Your provider, called directly from the browser (BYOK, key in localStorage only) |
-| Results | Deterministic coded tools (`CriteriaDrafter`, `PlanBuilder`, `RiskProfiler`, `CharterBuilder`) | The same tools, plus the model's own wording |
+| Router | `browser://mock`, built into the runtime | Your provider, called directly from the browser. On loopback, the runtime also mirrors the saved profile in a host cookie. |
+| Results | Deterministic coded tools (`CriteriaDrafter`, `PlanBuilder`, `RiskProfiler`, `CharterBuilder`) | The model chooses tool calls. Spec Desk renders any structured results returned. |
 | Label | Badge "Sample mode · no AI key · deterministic tools" on every site | Badge "Live · provider · model" |
 | Consent, fetches, boundary | Same | Same |
 
@@ -142,14 +148,14 @@ Everything in this README and in the screenshots is sample mode, with a fictiona
 | §2.1 | Front agent, descriptions, JSON Schema inputs, model hints, private-context rules | All three networks; allow rules on the caller front agent and on every coded tool | Checker report (checks 5, 7, 9) |
 | §2.2 | Data-only; coded tools optional, separate | Bundles under `tools/`, declared in the manifest with SRI | Checker checks 6 and 10 |
 | §3.1 | Validate before any model call; agent loop; delegation | Reference runtime; `spec_lead → criteria_writer → criteria_drafter` | Timeline: "Validated … with the reference validator" |
-| §3.1 | Grounded capability | Coded tools run in the sandboxed worker | Trace `tool_call` spans, receipt |
+| §3.1, §6 | Grounded capability | Coded tools run in the sandboxed worker. The local site action planned for the §6 check is pending. | Trace `tool_call` spans, receipt |
 | §3.2.1/5 | URL convention; exact name or fail | Slot URLs; `/nope` is refused | Swap to "A wrong name" → Not compatible (e2e) |
 | §3.2.2 | Peer runs locally on the caller's router | Runtime `selectPeerRouter` | Receipt "Model calls"; peer server log shows only static file GETs |
 | §3.2.4 | Consent with origin and purpose before each contact | Consent card on every peer contact and every checker read | e2e asserts zero peer requests before Allow, and zero after Decline |
 | §3.2.6 | Fetch and validate the definition; CORS | Server headers; runtime validation | Receipt "Files fetched", `tests/server.test.mjs` |
 | §3.2.7 | Private context only when named | Caller allow rule; the peer echoes `received_fields` | Plan card "Fields it received"; e2e untick test |
 | §3.3 | Manifest, network and links.json public with CORS; visitor overrides stored separately | All sites; binding in localStorage only | `tests/relay-modules.test.mjs` (links.json hash unchanged) |
-| §3.4 | No caller credentials on public artifact requests | Plain `fetch` across three host names | Server log `auth=no cookies=none` (asserted in e2e) |
+| §3.4 | No caller credentials on public artifact requests | Credential-free fetches across three host names | Server log `auth=no cookies=none` (asserted in e2e) |
 | §4 | Default router plus optional BYOK; key only to the router | `browser://mock` default; runtime BYOK panel | Mode badge; Runtime console drawer |
 
 ## Project structure
@@ -176,9 +182,12 @@ docs/                     SPEC, PLAN, RESEARCH, GRILL, adr/, images/
   module, inside the swap sheet, and as a CLI), the conformance drills page (invalid network,
   cycle, over budget, denied origin), and the `get_intake` site action and action bridge.
   Decline is covered by the e2e suite.
-- **The request text isn't filtered by the runtime.** In sample mode the mock router passes the
-  visitor's message as the request. Spec Desk's leak guard blocks Allow if any withheld value
-  appears in it, but the guard runs in the page, not in the runtime.
+- **Request text is separate from the allowlist.** In sample mode the mock uses the feature
+  request verbatim. Spec Desk scans the text for literal withheld values before approval.
+  Paraphrases can bypass this check. Keep secrets out of the free-text request, especially in
+  live mode, when the selected model provider receives that text. Internal notes can influence
+  generated risk tags and priorities. The raw trace redacts `sly_data` values and can still
+  show request text.
 - **The mock router's prose is naive** ("(mock summary) …"). The page renders structured results
   from the trace instead.
 - **Live mode hasn't been tried with a real key.** The default model hint (`openai/gpt-5-mini` on
