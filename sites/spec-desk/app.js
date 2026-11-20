@@ -95,6 +95,7 @@ function consentCard({ origin, purpose, requestText = null, crossing = [], stayi
 
 // ---- timeline ----------------------------------------------------------------
 const tl = $("#timeline");
+const pendingSteps = new Map();
 function step(text, cls = "done", detail = "") {
   const li = document.createElement("li");
   li.className = cls;
@@ -110,16 +111,20 @@ function onTrace(e) {
     tl.lastElementChild?.classList.replace("wait", "done");
     step(`Drafted ${ev.result?.criteria?.length ?? 0} acceptance criteria`);
   }
-  if (ev.kind === "remote_fetch" && ev.phase === "start") step(`Fetching published files from ${esc(ev.peerOrigin)}`, "wait");
+  if (ev.kind === "remote_fetch" && ev.phase === "start") pendingSteps.set(ev.id, step(`Fetching published files from ${esc(ev.peerOrigin)}`, "wait"));
   if (ev.kind === "remote_fetch" && ev.phase === "end") {
-    tl.lastElementChild?.classList.replace("wait", ev.status === "ok" ? "done" : "stop");
+    pendingSteps.get(ev.id)?.classList.replace("wait", ev.status === "ok" ? "done" : "stop");
+    pendingSteps.delete(ev.id);
     if (ev.status === "ok") {
-      tl.lastElementChild.querySelector("span").insertAdjacentHTML("beforeend", `<small>${Object.values(ev.fetchedUrls || {}).filter(Boolean).map(esc).join("<br>")}</small>`);
       step(`Validated <span class="mono">${esc(ev.network)}</span> with the reference validator`);
     } else step("Refused", "stop", esc(ev.error));
   }
-  if (ev.kind === "remote_call" && ev.phase === "start") step(`Running <span class="mono">${esc(ev.network)}</span> in your browser on your router`, "wait", `sly_data sent: ${Object.keys(ev.requestPayload?.sly_data || {}).join(", ") || "none"}`);
-  if (ev.kind === "remote_call" && ev.phase === "end") tl.lastElementChild?.classList.replace("wait", ev.status === "ok" ? "done" : "stop");
+  if (ev.kind === "peer_artifact" && ev.received) step("Read public artifact", "done", esc(ev.url));
+  if (ev.kind === "remote_call" && ev.phase === "start") pendingSteps.set(ev.id, step(`Running <span class="mono">${esc(ev.network)}</span> in your browser on your router`, "wait", `sly_data sent: ${esc(Object.keys(ev.requestPayload?.sly_data || {}).join(", ") || "none")}`));
+  if (ev.kind === "remote_call" && ev.phase === "end") {
+    pendingSteps.get(ev.id)?.classList.replace("wait", ev.status === "ok" ? "done" : "stop");
+    pendingSteps.delete(ev.id);
+  }
   if ((ev.kind === "composition_limit" || ev.kind === "composition_skip")) step("Skipped by the runtime", "stop", esc(ev.reason));
 }
 
@@ -154,14 +159,14 @@ function planCard(p) {
 function receiptCard(r, consentLog, events) {
   const decision = consentLog.map((c) => `${c.decision} ${c.origin} at ${c.time}`).join("; ") || "no contact requested";
   return `<article class="card art receipt enter" aria-label="Boundary receipt">
-    <header><h3>Boundary receipt</h3>${stamp("127.0.0.1:5173", " · recorded here")}</header>
+    <header><h3>Boundary receipt</h3>${stamp(location.host, " · recorded here")}</header>
     <dl>
       <dt>Consent</dt><dd>${esc(decision)}</dd>
       <dt>Origins contacted</dt><dd>${esc(r.contactedOrigins.join(", ") || "none")}</dd>
       <dt>Files fetched</dt><dd>${r.fetchedUrls.map(esc).join("<br>") || "none"}</dd>
       <dt>Validation</dt><dd>${r.validation}</dd>
       <dt>sly_data keys sent</dt><dd>${esc(r.slyKeysSent.join(", ") || "none")}</dd>
-      <dt>Never sent</dt><dd>${esc(Object.keys(SAMPLE).filter((k) => !r.slyKeysSent.includes(k)).join(", "))}</dd>
+      <dt>Excluded from sly_data</dt><dd>${esc(Object.keys(SAMPLE).filter((k) => !r.slyKeysSent.includes(k)).join(", "))}</dd>
       <dt>Model calls</dt><dd>${esc(booted.routerHost)}${booted.mode.live ? " (yours)" : ""} · sent to peers: none</dd>
       <dt>Authorization to peer</dt><dd>${r.authorizationSentToPeer}</dd>
       ${r.errors.length ? `<dt>Errors</dt><dd>${esc(r.errors.join(" | "))}</dd>` : ""}
@@ -182,6 +187,7 @@ async function runRelay() {
   renderSlot();
   engine.resetHistory();
   tl.innerHTML = "";
+  pendingSteps.clear();
   $("#results").innerHTML = "";
   const since = trace.events.at(-1)?.seq ?? -1;
   const values = intake();

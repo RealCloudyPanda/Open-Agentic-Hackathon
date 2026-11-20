@@ -23,6 +23,7 @@ export function installPeerBoundary(engine, slot, transport = globalThis) {
     const manifestUrl = new URL("agent-manifest.json", target.base).href;
     const paths = new Set([manifestUrl, new URL("links.json", target.base).href]);
     const routerUrl = new URL(`${engine.top.llm.baseUrl}/chat/completions`).href;
+    if (routerUrl.origin === target.base.origin) throw new Error("Choose a planner on a separate origin from your AI router.");
     const ask = engine.onConsent;
     let approved = false;
     engine.consent.clear();
@@ -46,26 +47,24 @@ export function installPeerBoundary(engine, slot, transport = globalThis) {
       if (!approved || method !== "GET" || !paths.has(url.href)) {
         throw new Error(`Contact with ${url.origin} was not approved for this request.`);
       }
-      try {
-        const response = await fetchPeerArtifact(fetch, target.base.origin, url.href, options);
-        if (response.ok && url.href === manifestUrl) {
-          const manifest = await response.clone().json();
-          const entry = manifest?.networks?.find((network) => network?.name === target.name);
-          if (manifest?.actions) throw new Error("Planner action bridges are outside this slot's consent.");
-          for (const file of [entry?.hocon, manifest?.coded_tools?.bundle].filter(Boolean)) {
-            const asset = new URL(runtimeArtifactUrl(target.base, file));
-            if (asset.origin !== target.base.origin || asset.username || asset.password) {
-              throw new Error("Published artifacts must stay on the approved peer origin.");
-            }
-            paths.add(asset.href);
-          }
-        }
-        engine.trace.note("peer_artifact", { peerOrigin: url.host, url: url.href, received: response.ok });
-        return response;
-      } catch (error) {
+      const response = await fetchPeerArtifact(fetch, target.base.origin, url.href, options).catch((error) => {
         engine.trace.note("peer_artifact", { peerOrigin: url.host, url: url.href, received: false });
         throw error;
+      });
+      engine.trace.note("peer_artifact", { peerOrigin: url.host, url: url.href, received: response.ok });
+      if (response.ok && url.href === manifestUrl) {
+        const manifest = await response.clone().json();
+        const entry = manifest?.networks?.find((network) => network?.name === target.name);
+        if (manifest?.actions) throw new Error("Planner action bridges are outside this slot's consent.");
+        for (const file of [entry?.hocon, manifest?.coded_tools?.bundle].filter(Boolean)) {
+          const asset = new URL(runtimeArtifactUrl(target.base, file));
+          if (asset.origin !== target.base.origin || asset.username || asset.password) {
+            throw new Error("Published artifacts must stay on the approved peer origin.");
+          }
+          paths.add(asset.href);
+        }
       }
+      return response;
     };
     try {
       return await runTurn(...args);
