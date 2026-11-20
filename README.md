@@ -1,22 +1,204 @@
 # Spec Relay
 
-> Hand a spec to another site's agents without handing over your secrets — then swap that site out by URL.
+> Hand a spec to another site's agents without handing over your secrets, then swap that site out by URL.
 
-Spec Relay is three independent open agentic websites built on the
-[Worldwide Agentic Web MVP spec](https://github.com/cognizant-ai-labs/agentic-web) for the
-Open Agentic Web Challenge:
+![Spec Desk after a relay in sample mode: intake, handoff ledger, live timeline and origin-stamped results](docs/images/hero.png)
 
-- **Spec Desk** turns a feature request into acceptance criteria with its own agent network.
-- **Test Planner** (another origin) publishes a network that turns acceptance criteria into a test plan.
-- **Risk Radar** (a third origin) publishes a drop-in alternative planner.
+Spec Relay is three independent open agentic websites, built on the
+[Worldwide Agentic Web MVP spec (Profile 0.3)](https://github.com/cognizant-ai-labs/agentic-web) and its
+unmodified reference browser runtime:
 
-Spec Desk loads the planner's published network into the visitor's browser, asks before
-contacting it (origin + purpose), shows exactly which private-context fields cross the
-boundary, and lets the visitor swap the planner by URL without changing Spec Desk's code.
+| Site | Local origin | Published network | What it does |
+| --- | --- | --- | --- |
+| **Spec Desk** | `http://127.0.0.1:5173` | `spec_desk` | Turns a feature request into acceptance criteria, then calls a test planner through a link slot |
+| **Test Planner** | `http://localhost:5174` | `test_planner` | Turns acceptance criteria into a case-by-case test matrix |
+| **Risk Radar** | `http://[::1]:5175` | `risk_test_planner` | A drop-in alternative planner: risk matrix and exploratory charters |
 
-Status: planning. See `docs/SPEC.md` and `docs/PLAN.md`.
+## The problem
+
+A product engineer has a feature request plus context that must not leave the team: the
+customer's name and internal notes. They want acceptance criteria and a test plan. Today they
+paste everything into whichever AI tool is open, and they can't change that tool without
+re-integrating it.
+
+## What it does
+
+1. **Spec Desk's agents draft acceptance criteria in your browser.** The front agent delegates to
+   `criteria_writer`, which calls a sandboxed coded tool that reads your private intake.
+2. **Spec Desk loads Test Planner's *published* agent network from another origin** and runs it
+   locally, on your own model router. A consent card names the origin and the purpose, and shows
+   the exact request text, before anything is fetched from that origin.
+3. **A handoff ledger shows which fields cross.** It's computed from Spec Desk's published
+   `allow.to_downstream.sly_data` rule, plus your own unticks. The criteria, title and platform
+   cross. The customer name and internal notes never leave, and the runtime enforces that.
+4. **A boundary receipt proves it afterwards.** It lists the origins contacted, the files fetched,
+   the validation result, the `sly_data` keys sent, which router was used, and confirms no
+   credentials went to the peer. The planner's own result echoes back the fields it received.
+5. **Swap the planner by URL.** A slot-contract compatibility checker reads the candidate's public
+   files (it asks first, and runs nothing). If the candidate passes, your choice is stored in this
+   browser only. The next run uses Risk Radar on a third origin, a network with a different shape,
+   and Spec Desk's code and published files don't change.
+
+![Consent card: origin, purpose, full request text, leak guard, fields that cross and stay](docs/images/consent.png)
+
+## The demo moment
+
+Click **Run relay** and the consent card asks to contact `localhost:5174`. Click **Allow** and the
+timeline shows the three published files being fetched and validated, then run in your browser.
+The test plan card is stamped `localhost:5174` and says "Fields it received: acceptance_criteria,
+feature_title, platform". Then click **Swap**, pick Risk Radar, run **Check compatibility**, then
+**Use this planner** and run again. This time the consent card names `[::1]:5175`, and a risk
+matrix comes back from a different site.
+
+![Swap sheet with the compatibility checker's twelve checks for Risk Radar](docs/images/swap-checker.png)
+
+| Boundary receipt | Risk Radar's result after the swap |
+| --- | --- |
+| ![Boundary receipt](docs/images/receipt.png) | ![Risk matrix and charters stamped [::1]:5175](docs/images/risk-plan.png) |
+
+## How it works
+
+```mermaid
+flowchart LR
+  subgraph Browser["Visitor's browser (tab on 127.0.0.1:5173)"]
+    UI[Spec Desk page<br/>ledger · consent card · receipt]
+    RT[Reference nsDeploy runtime<br/>vendored, unmodified]
+    SB[Sandboxed worker<br/>coded tools, no network]
+    UI -->|engine.runTurn + slyData| RT
+    RT --> SB
+  end
+  RT -->|own manifest, network, links.json| A[(127.0.0.1:5173<br/>Spec Desk)]
+  RT -. "after consent: manifest, network, tools bundle (CORS, no credentials)" .-> B[(localhost:5174<br/>Test Planner)]
+  RT -. "after swap + consent" .-> C[(&#91;::1&#93;:5175<br/>Risk Radar)]
+  RT -->|model calls only| R{{Your router:<br/>browser://mock or BYOK}}
+```
+
+- Each site publishes `agent-manifest.json`, `<network>.network.json` (built from canonical
+  `<network>.hocon` by the vendored parser and validator), `links.json`, and a self-contained
+  coded-tool bundle with an SRI digest. All of these are served with `Access-Control-Allow-Origin: *`.
+- `spec_desk` declares `link_slots.test_planner`. Its published `links.json` binds the slot to
+  `http://localhost:5174/test_planner`. A visitor's swap is stored under the runtime's own key
+  (`nsdeploy-link-v1::…`) and applied with `network.setLink` and `runtimeAllowedPeers`. The
+  published file is never written (unit-tested).
+- Peer networks always run on the caller's router and key (the runtime's `selectPeerRouter`).
+  Only `sly_data` keys named in the caller's front-agent allow rule cross, and each peer coded
+  tool gets only the keys its own allow rule names.
+- Three host names, not three ports on one host: the runtime mirrors BYOK profiles into
+  per-host cookies on loopback, so separate host names keep your key away from the peers.
+
+## Sponsor tech and why it is needed
+
+- **Worldwide Agentic Web MVP spec and the reference nsDeploy browser runtime** (vendored from
+  `cognizant-ai-labs/agentic-web` at `0516537`, Apache-2.0, unmodified; see
+  `vendor/nsdeploy-runtime.PROVENANCE.md`). It does the real work: it loads the HOCON networks,
+  validates them before any model call, runs the agent loop, fetches and runs peers locally after
+  consent, enforces `sly_data` allow rules, runs coded tools in the sandbox, applies the
+  composition budgets, and records the trace the receipt is built from.
+- **Neuro SAN HOCON** network definitions, with the runtime's cross-compiled validator also used
+  at build time (`npm run build:networks`) and by the compatibility checker.
+
+## Quickstart
+
+Requires Node 22 and an IPv6 loopback (`::1`), which macOS and most Linux setups have.
+
+```bash
+npm install
+npm start
+# open http://127.0.0.1:5173
+```
+
+`npm start` serves all three sites and logs one line per request, for example
+`[test-planner] GET /agent-manifest.json from=http://127.0.0.1:5173 auth=no cookies=none 200`.
+That lets you watch the peer's side of the boundary.
+
+Other commands:
+
+```bash
+npm test                         # unit tests (node --test)
+npm run test:e2e                 # Playwright: relay, decline, untick, swap
+npm run build:networks -- --check  # HOCON -> network JSON + SRI digests are up to date
+node tools/peer-check.mjs http://localhost:5174/test_planner \
+  --slot "http://127.0.0.1:5173/agent-manifest.json#test_planner"   # needs npm start running
+node scripts/screenshots.mjs     # regenerate docs/images
+```
+
+## Sample mode vs live mode
+
+| | Sample mode (default) | Live mode |
+| --- | --- | --- |
+| Trigger | No key saved | Key saved in the runtime's own "AI model settings" (open the **Runtime console** drawer) |
+| Router | `browser://mock`, built into the runtime, offline | Your provider, called directly from the browser (BYOK, key in localStorage only) |
+| Results | Deterministic coded tools (`CriteriaDrafter`, `PlanBuilder`, `RiskProfiler`, `CharterBuilder`) | The same tools, plus the model's own wording |
+| Label | Badge "Sample mode · no AI key · deterministic tools" on every site | Badge "Live · provider · model" |
+| Consent, fetches, boundary | Same | Same |
+
+Everything in this README and in the screenshots is sample mode, with a fictional customer.
+
+## Judging → proof
+
+| Spec (Profile 0.3) | Requirement | How Spec Relay meets it | Where to verify |
+| --- | --- | --- | --- |
+| §2 | HOCON canonical, resolved JSON published | `*.hocon` → `*.network.json` via the vendored parser | `npm run build:networks -- --check`, `tests/networks.test.mjs` |
+| §2.1 | Front agent, descriptions, JSON Schema inputs, model hints, private-context rules | All three networks; allow rules on the caller front agent and on every coded tool | Checker report (checks 5, 7, 9) |
+| §2.2 | Data-only; coded tools optional, separate | Bundles under `tools/`, declared in the manifest with SRI | Checker checks 6 and 10 |
+| §3.1 | Validate before any model call; agent loop; delegation | Reference runtime; `spec_lead → criteria_writer → criteria_drafter` | Timeline: "Validated … with the reference validator" |
+| §3.1 | Grounded capability | Coded tools run in the sandboxed worker | Trace `tool_call` spans, receipt |
+| §3.2.1/5 | URL convention; exact name or fail | Slot URLs; `/nope` is refused | Swap to "A wrong name" → Not compatible (e2e) |
+| §3.2.2 | Peer runs locally on the caller's router | Runtime `selectPeerRouter` | Receipt "Model calls"; peer server log shows only static file GETs |
+| §3.2.4 | Consent with origin and purpose before each contact | Consent card on every peer contact and every checker read | e2e asserts zero peer requests before Allow, and zero after Decline |
+| §3.2.6 | Fetch and validate the definition; CORS | Server headers; runtime validation | Receipt "Files fetched", `tests/server.test.mjs` |
+| §3.2.7 | Private context only when named | Caller allow rule; the peer echoes `received_fields` | Plan card "Fields it received"; e2e untick test |
+| §3.3 | Manifest, network and links.json public with CORS; visitor overrides stored separately | All sites; binding in localStorage only | `tests/relay-modules.test.mjs` (links.json hash unchanged) |
+| §3.4 | No caller credentials on public artifact requests | Plain `fetch` across three host names | Server log `auth=no cookies=none` (asserted in e2e) |
+| §4 | Default router plus optional BYOK; key only to the router | `browser://mock` default; runtime BYOK panel | Mode badge; Runtime console drawer |
+
+## Project structure
+
+```text
+server/serve.mjs          one process, three listeners, spec hosting headers, request log
+vendor/nsdeploy-runtime/  reference runtime, byte-identical copy (Apache-2.0), never edited
+shared/                   tokens.css, boot-site.js, trace-artifacts.js, peer-check.js, planner page
+sites/spec-desk/          caller: page, relay/{ledger,binding}.js, tools/criteria-drafter.js, spec_desk.hocon
+sites/test-planner/       peer: page, tools/plan-builder.js, test_planner.hocon
+sites/risk-radar/         alternative peer: page, tools/risk-charter.js, risk_test_planner.hocon
+scripts/                  build-networks.mjs, screenshots.mjs
+tools/peer-check.mjs      compatibility checker CLI
+tests/                    node --test unit tests, tests/e2e Playwright specs
+docs/                     SPEC, PLAN, RESEARCH, GRILL, adr/, images/
+```
+
+## Known limitations
+
+- **Local only for now.** There's no static build for public hosting yet (`scripts/build-static.mjs`
+  from the plan isn't written). Hosting the three sites publicly
+  needs three HTTPS origins, with CORS and the worker CSP set as `server/serve.mjs` sets them.
+- **Not built yet:** the standalone checker page (`checker.html`; the checker exists as an ES
+  module, inside the swap sheet, and as a CLI), the conformance drills page (invalid network,
+  cycle, over budget, denied origin), and the `get_intake` site action and action bridge.
+  Decline is covered by the e2e suite.
+- **The request text isn't filtered by the runtime.** In sample mode the mock router passes the
+  visitor's message as the request. Spec Desk's leak guard blocks Allow if any withheld value
+  appears in it, but the guard runs in the page, not in the runtime.
+- **The mock router's prose is naive** ("(mock summary) …"). The page renders structured results
+  from the trace instead.
+- **Live mode hasn't been tried with a real key.** The default model hint (`openai/gpt-5-mini` on
+  OpenRouter) hasn't been confirmed, and the provider must allow browser CORS.
+- **Visitor bindings and consent are tab-scoped or browser-local.** There's no cross-site write
+  of any kind.
+- **IPv6 loopback is required** for the third origin `[::1]:5175`. `npm start` prints a clear
+  error if it can't bind.
+- **Accessibility** has keyboard focus rings, focus moved to the dialog title, Escape to decline
+  and reduced-motion support. A full audit hasn't been done.
+
+## How this was built
+
+This prototype was built with AI-assisted development: an AI coding assistant wrote most of
+the code, tests and docs, working from a written spec and plan (`docs/SPEC.md`, `docs/PLAN.md`)
+under the author's direction. The reference runtime is third-party code, vendored unchanged. No
+metrics, users or results in this README are invented. Every number shown comes from running
+the deterministic sample mode.
 
 ## License
 
-MIT for this project's code (see `LICENSE`). The vendored browser runtime in
-`vendor/nsdeploy-runtime/` is Apache-2.0 (see its `LICENSE.txt`).
+MIT for this project's code (see `LICENSE`). The vendored runtime in `vendor/nsdeploy-runtime/`
+is Apache-2.0 (see its `LICENSE.txt` and `vendor/nsdeploy-runtime.PROVENANCE.md`).

@@ -11,7 +11,6 @@
     "test": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test",
     "build:networks": "node scripts/build-networks.mjs",
-    "build": "node scripts/build-static.mjs",
     "check:peer": "node tools/peer-check.mjs"
   },
   "devDependencies": {
