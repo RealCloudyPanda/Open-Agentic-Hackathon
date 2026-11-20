@@ -5,7 +5,14 @@
       "name": "test_planner",
       "front_man": "planning_lead",
       "hocon": "./test_planner.network.json",
-      "description": "Spike peer."
+      "description": "Turns acceptance criteria into a case-by-case test plan.",
+      "tags": [
+        "spec-relay",
+        "planner"
+      ],
+      "sample_queries": [
+        "AC-1: Undo reverts my most recent edit\\nAC-2: Redo reapplies an edit I undid"
+      ]
     }
   ],
   "llm_router": {
@@ -19,14 +26,37 @@
     "deny_origins": [],
     "note": "Calls no other sites."
   },
+  "coded_tools": {
+    "bundle": "./tools/plan-builder.js",
+    "integrity": "sha256-GpkPjVv2023cf0HuER0t78hNTzqllYNU4L+aa7nR7C0="
+  },
+  "theme": {
+    "primary": "#1E4F8A"
+  },
+  "linking": {
+    "protocol": "nsdeploy-link/v1",
+    "exports": [
+      {
+        "network": "test_planner",
+        "front_man": "planning_lead",
+        "aliases": [
+          "test_planner",
+          "planning_lead"
+        ],
+        "url": "test_planner"
+      }
+    ],
+    "imports": [],
+    "link_updates": {
+      "mode": "browser-local"
+    }
+  },
   "deployment": {
     "mode": "static",
     "self_contained_runtime": true,
     "browser_mock": true,
-    "direct_byok": true
-  },
-  "coded_tools": {
-    "bundle": "./tools/plan-builder.js",
-    "integrity": "sha256-6WmcdM9YJ9MRKbLdVkHeierOSb+0s1pvM6xPqKi9DHk="
+    "direct_byok": true,
+    "direct_mcp_requires_cors": true,
+    "public_mcp_facade": false
   }
 }
