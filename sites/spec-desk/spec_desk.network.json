@@ -1,15 +1,104 @@
 {
-  "metadata": { "description": "Spike caller." },
-  "llm_config": { "model_name": "openai/gpt-5-mini" },
+  "metadata": {
+    "description": "Spike caller."
+  },
+  "llm_config": {
+    "model_name": "openai/gpt-5-mini"
+  },
   "max_steps": 8,
-  "link_slots": { "test_planner": { "description": "Turns acceptance criteria into a test plan." } },
+  "link_slots": {
+    "test_planner": {
+      "description": "Turns acceptance criteria into a test plan."
+    }
+  },
   "tools": [
     {
       "name": "spec_lead",
-      "function": { "description": "Spike front agent.", "parameters": { "type": "object", "properties": { "request": { "type": "string" } }, "required": ["request"] } },
+      "function": {
+        "description": "Spike front agent.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        }
+      },
       "instructions": "Call test_planner, then summarise.",
-      "allow": { "to_downstream": { "sly_data": ["acceptance_criteria", "feature_title", "platform"] } },
-      "tools": ["test_planner"]
+      "allow": {
+        "to_downstream": {
+          "sly_data": [
+            "acceptance_criteria",
+            "feature_title",
+            "platform"
+          ]
+        }
+      },
+      "tools": [
+        "criteria_writer",
+        "test_planner"
+      ]
+    },
+    {
+      "name": "criteria_writer",
+      "function": {
+        "description": "Drafts criteria.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        }
+      },
+      "instructions": "Call criteria_drafter.",
+      "tools": [
+        "criteria_drafter"
+      ]
+    },
+    {
+      "name": "criteria_drafter",
+      "class": "CriteriaDrafter",
+      "function": {
+        "description": "Drafts acceptance criteria.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        },
+        "sly_data_output_schema": {
+          "type": "object",
+          "properties": {
+            "acceptance_criteria": {
+              "type": "array"
+            }
+          }
+        }
+      },
+      "allow": {
+        "to_downstream": {
+          "sly_data": [
+            "feature_request",
+            "feature_title",
+            "platform",
+            "internal_notes"
+          ]
+        }
+      }
     }
   ]
 }

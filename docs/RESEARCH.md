@@ -174,3 +174,17 @@ Agent Customs (peer instruction inspection). A plain "is this site conformant?" 
 already taken. Our community tool must differ: **slot-contract compatibility** — "can this
 network be dropped into *my* link slot?" (accepted private-context fields, input schema,
 exact-name resolution, CORS, validation), with a one-click swap when it passes.
+
+## 7. Spike results
+
+- **Task 3, cross-origin peer load (passed).** With `test_planner` as a link slot bound by
+  `links.json`, `engine.onConsent` fires with `peerOrigin: "localhost:5174"` while the
+  5174 server has logged zero requests. After Allow, 5174 serves `agent-manifest.json`,
+  `test_planner.network.json` and `links.json`, all with `auth=no cookies=none`. Decline
+  produces zero 5174 requests. No fallback needed (`tests/e2e/spike-peer.spec.mjs`).
+- **Task 4, sly_data across the boundary (passed, nested variant ships).** With
+  `spec_lead → criteria_writer → criteria_drafter`, the drafter's `acceptance_criteria`
+  write merges up to `spec_lead`; `remote_call.requestPayload.sly_data` has exactly
+  `acceptance_criteria, feature_title, platform`, and the peer's `PlanBuilder` receives
+  exactly those keys. `customer_name` and `internal_notes` never cross. The flat variant
+  also passes (`tests/e2e/spike-sly.spec.mjs`).

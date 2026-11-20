@@ -1,8 +1,32 @@
 {
   "brand": "Spec Desk",
-  "networks": [{ "name": "spec_desk", "front_man": "spec_lead", "hocon": "./spec_desk.network.json", "description": "Spike." }],
-  "llm_router": { "base_url": "browser://mock", "mock": true, "byok_router": "https://openrouter.ai/api/v1" },
-  "allowed_peers": ["http://localhost:5174"],
-  "peer_policy": { "mode": "closed", "deny_origins": [] },
-  "deployment": { "mode": "static", "self_contained_runtime": true, "browser_mock": true, "direct_byok": true }
+  "networks": [
+    {
+      "name": "spec_desk",
+      "front_man": "spec_lead",
+      "hocon": "./spec_desk.network.json",
+      "description": "Spike."
+    }
+  ],
+  "llm_router": {
+    "base_url": "browser://mock",
+    "mock": true,
+    "byok_router": "https://openrouter.ai/api/v1"
+  },
+  "allowed_peers": [
+    "http://localhost:5174"
+  ],
+  "peer_policy": {
+    "mode": "closed",
+    "deny_origins": []
+  },
+  "deployment": {
+    "mode": "static",
+    "self_contained_runtime": true,
+    "browser_mock": true,
+    "direct_byok": true
+  },
+  "coded_tools": {
+    "bundle": "./tools/criteria-drafter.js"
+  }
 }
