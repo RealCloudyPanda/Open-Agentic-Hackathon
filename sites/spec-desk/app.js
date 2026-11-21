@@ -95,13 +95,14 @@ function renderSlot() {
 
 // ---- consent card ------------------------------------------------------------
 const dlg = $("#consent");
-function consentCard({ origin, purpose, requestText = null, crossing = [], staying = [], withheld = {}, routerHost, checker = false }) {
-  const leaks = requestText ? findLeaks(requestText, withheld) : [];
+function consentCard({ origin, purpose, requestText = null, crossing = [], staying = [], withheld = {}, routerHost, checker = false, payload = null }) {
+  const leaks = requestText ? findLeaks(requestText + (payload ? JSON.stringify(payload) : ""), withheld) : [];
   dlg.innerHTML = `
     <h2 id="consent-title" tabindex="-1">Contact <b>${esc(origin)}</b>?</h2>
     <p>${purpose}</p>
     ${requestText !== null ? `<p class="label">Request text</p><div class="req">${esc(requestText)}</div>
       <p class="guard ${leaks.length ? "bad" : "ok"}">${leaks.length ? `Blocked: the request contains your ${leaks.map((k) => `<code>${k}</code>`).join(", ")} value.` : "Leak guard: no withheld values found in the request."}</p>` : ""}
+    ${payload ? `<details open><summary>Exact approved structured context</summary><pre>${esc(JSON.stringify(payload, null, 2))}</pre></details>` : ""}
     ${checker ? "" : `<div class="cols"><div><p class="label">Fields that will cross</p><ul>${crossing.map((k) => `<li>${k}</li>`).join("") || "<li>none</li>"}</ul></div>
       <div><p class="label">Fields that stay here</p><ul>${staying.map((k) => `<li>${k}</li>`).join("")}</ul></div></div>`}
     <p class="key">${routerHost?.startsWith("browser://") ? "No AI key in use (sample mode)." : `Your AI key stays with your router (<code>${esc(routerHost)}</code>). The peer site never receives it.`} Requests carry no cookies or credentials.</p>
@@ -255,6 +256,7 @@ async function runRelay(approved = false) {
       origin: info.peerOrigin,
       purpose: `Load the published network <code>${esc(hostOf(binding.target) === info.peerOrigin ? binding.target.split("/").pop() : info.peerLabel)}</code> from <code>${esc(new URL(binding.target).origin)}</code> and run it in this browser to turn your acceptance criteria into a test plan.`,
       requestText: info.requestText,
+      payload: approved ? slyData : null,
       crossing: criteria ? crossing : crossing.filter((k) => k !== "acceptance_criteria"),
       staying: staying.filter((k) => k !== "feature_request"), withheld, routerHost: booted.routerHost,
     });
@@ -289,7 +291,7 @@ async function runRelay(approved = false) {
   out.push(receiptCard(receipt, consentLog, events));
   step("Receipt written");
   $("#results").innerHTML = out.join("");
-  window.__relay.last = { criteria, plan, receipt, consentLog, approvedCriteria: approved ? slyData.acceptance_criteria : null };
+  window.__relay.last = { criteria: criteria || draftArtifact, plan, receipt, consentLog, approvedCriteria: approved ? slyData.acceptance_criteria : null };
   running = false;
   $("#run").disabled = false;
   $("#swap-btn").disabled = false;
