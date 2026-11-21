@@ -28,3 +28,11 @@ Record on the **public** URLs once deployed (or loopback if you must, but say so
 | 1:00–1:15 | Boundary receipt next to the planner's server log line. | "The receipt and the planner's own server log agree: it got the criteria, not the customer or the notes, and never my key." |
 | 1:15–1:35 | **Swap** → Risk Radar → **Check compatibility** (twelve checks pass) → **Use this planner** → run. Risk matrix stamped with the third origin. | "Now I swap the planner by URL. The checker reads Risk Radar's public files, it passes, and the next run uses a different site, without changing Spec Desk's code." |
 | 1:35–1:50 | Terminal: `node tools/peer-check.mjs` against the planner URL, all checks passing. End card with the Spec Desk URL. | "The same checker is open source as a module and a command-line tool, so any agent site can test whether a peer fits before trusting it." |
+
+## Devpost text
+
+**Project name:** Spec Relay
+
+**Elevator pitch** (≤200 chars):
+
+> Hand a spec to another site's agents without handing over your secrets, then swap that site out by URL. Three open agentic websites, a consent card, and a field-level ledger.
