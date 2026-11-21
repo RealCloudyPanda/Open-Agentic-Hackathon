@@ -19,7 +19,15 @@ async function fixtureEngine(t, change = (text) => text) {
     assert.ok(folder, `Unexpected fetch: ${url.href}`);
     reads.push({ url, options });
     const file = new URL(`../sites/${folder}${url.pathname}`, import.meta.url);
-    return new Response(change(await readFile(file, "utf8"), url));
+    let text = await readFile(file, 'utf8');
+    // This low-level runtime fixture deliberately composes both phases. The UI
+    // uses separate staged networks, covered by relay.spec.mjs.
+    if (url.href === desk + '/spec_desk.network.json') {
+      const network = JSON.parse(text);
+      network.tools[0].tools = ['criteria_writer', 'test_planner'];
+      text = JSON.stringify(network);
+    }
+    return new Response(change(text, url));
   });
   const entries = new Map();
   const storage = {
