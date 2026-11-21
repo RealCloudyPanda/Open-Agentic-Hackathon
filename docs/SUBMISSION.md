@@ -77,3 +77,9 @@ so the three sites use three host names, not three ports. Peer networks always r
 Planning, code and docs were drafted with AI coding assistants under my direction and checked by running
 the unit and browser tests. [[OWNER: name the assistants you used.]]
 ```
+
+**Built with:** `javascript` · `html` · `css` · `node.js` · `nsdeploy-runtime` · `neuro-san-hocon` · `playwright`
+
+**Try it out:** [[public Spec Desk URL]] · `https://github.com/RealCloudyPanda/Open-Agentic-Hackathon`
+
+**Significant update statement** (if asked): the project was created during the submission period; first commit 2026-11-20.
