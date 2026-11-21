@@ -1,5 +1,7 @@
 # Spec Relay — product and technical spec
 
+> Implemented status (2026-11-21): source-linked requirements, suggested checks, editable review, explicit approval before a separate handoff network, normalized planner output and Markdown review exports are implemented. Standalone checker and three actual-runtime policy drills are available. Static three-HTTPS-origin packaging rewrites origins, regenerates tool SRI and validates canonical networks; packed relay and risk swap run in local browser transport fixtures. The cycle drill, get_intake action bridge, real BYOK and public hosting remain pending. Historical tasks below record the original scope.
+
 Status: approved for build (planner, 2026-11-20). Background: `docs/RESEARCH.md`. Decisions:
 `docs/GRILL.md`, `docs/adr/`. Vocabulary: `GLOSSARY.md` (UI text uses glossary terms).
 
