@@ -83,3 +83,11 @@ the unit and browser tests. [[OWNER: name the assistants you used.]]
 **Try it out:** [[public Spec Desk URL]] · `https://github.com/RealCloudyPanda/Open-Agentic-Hackathon`
 
 **Significant update statement** (if asked): the project was created during the submission period; first commit 2026-11-20.
+
+## Before you press submit
+- [ ] Static build written (not built yet), three sites on three distinct public HTTPS origins, `publicOrigin` filled in `sites.config.json`, CORS and worker CSP headers checked.
+- [ ] Checker run against all three public network URLs; all Compatible.
+- [ ] Sample mode works end to end on the public URLs with no key.
+- [ ] Video under 2:00, your own voice, public on YouTube.
+- [ ] Every `[[OWNER]]` line replaced or removed.
+- [ ] Submit by Jan 8; the deadline is Jan 11, 11:00 AM ET.
