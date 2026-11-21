@@ -136,8 +136,10 @@ function onTrace(e) {
 function criteriaCard(c) {
   return `<article class="card art enter" aria-label="Acceptance criteria">
     <header><h3>Acceptance criteria</h3>${stamp(c.origin, " · Spec Desk")}</header>
+    <p>Suggested checks require review before handoff.</p>
+    ${(c.requirements || []).map((r) => `<p><b>${esc(r.id)}</b> · Explicit requirement: ${esc(r.text)} <small>feature_request [${r.source.start}, ${r.source.end})</small></p>`).join("")}
     <div class="tablewrap"><table><thead><tr><th>ID</th><th>Criterion</th><th>Priority</th></tr></thead><tbody>
-    ${c.criteria.map((x) => `<tr><td class="id">${esc(x.id)}</td><td>${esc(x.title)}<div class="gwt">Given ${esc(x.given)}; when ${esc(x.when)}; then ${esc(x.then)}.</div></td><td class="id">${esc(x.priority)}</td></tr>`).join("")}
+    ${c.criteria.map((x) => `<tr><td class="id">${esc(x.id)}</td><td>${esc(x.title)} <small>${esc(x.status || "needs review")} · ${(x.requirement_ids || []).map(esc).join(", ") || "No explicit source requirement"}</small><div class="gwt">Given ${esc(x.given)}; when ${esc(x.when)}; then ${esc(x.then)}.</div></td><td class="id">${esc(x.priority)}</td></tr>`).join("")}
     </tbody></table></div></article>`;
 }
 function planCard(p) {
