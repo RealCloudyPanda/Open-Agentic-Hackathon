@@ -4,18 +4,17 @@
 export function artifactsFrom(events, { since = -1, localOrigin = "" } = {}) {
   const ev = events.filter((e) => (e.seq ?? 0) > since);
   const ends = (kind) => ev.filter((e) => e.kind === kind && e.phase === "end");
-  const toolEnd = (name, origin = "") => ends("tool_call").find((e) => e.tool === name && e.status === "ok" && (!origin || e.origin === origin));
-  const drafter = toolEnd("CriteriaDrafter", localOrigin);
-  const criteria = rows(drafter?.result?.criteria) ? { ...drafter.result, origin: drafter.origin } : null;
-
+  // Artifact contracts allow compatible peers to rename their coded tools.
+  const results = ends("tool_call").filter((e) => e.status === "ok" && e.result && typeof e.result === "object");
+  const drafter = results.find((e) => (!localOrigin || e.origin === localOrigin) && rows(e.result.criteria));
+  const criteria = drafter ? { ...drafter.result, origin: drafter.origin } : null;
   let plan = null;
-  const pb = toolEnd("PlanBuilder");
-  const rp = toolEnd("RiskProfiler");
-  const cb = toolEnd("CharterBuilder");
-  if (rows(pb?.result?.plan?.cases) && Array.isArray(pb.result.plan.platform_notes)) {
-    plan = { ...pb.result, kind: "test_plan", origin: pb.origin };
-  } else if (rows(rp?.result?.risks) && rp.result.risks.every((row) => Array.isArray(row.criteria))) {
-    plan = { kind: "risk_plan", origin: rp.origin, risks: rp.result.risks, received_fields: rp.result.received_fields, charters: rows(cb?.result?.charters) ? cb.result.charters : [] };
+  const pb = results.find((e) => rows(e.result.plan?.cases) && Array.isArray(e.result.plan.platform_notes));
+  const rp = results.find((e) => rows(e.result.risks) && e.result.risks.every((r) => Array.isArray(r.criteria)));
+  if (pb) plan = { ...pb.result, kind: "test_plan", origin: pb.origin };
+  else if (rp) {
+    const cb = results.find((e) => e.origin === rp.origin && rows(e.result.charters));
+    plan = { kind: "risk_plan", origin: rp.origin, risks: rp.result.risks, received_fields: rp.result.received_fields, charters: cb?.result.charters ?? [] };
   }
 
   const fetches = ends("remote_fetch");
