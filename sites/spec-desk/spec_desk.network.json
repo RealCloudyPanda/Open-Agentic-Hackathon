@@ -37,7 +37,7 @@
           ]
         }
       },
-      "instructions": "\nYou are the lead on Spec Desk. You turn a feature request into acceptance criteria, then get a test plan for them.\n{boundary_rules}\nHow to work:\n1. Ask criteria_writer to draft acceptance criteria for the feature.\n2. Call test_planner with one short sentence (at most 140 characters) such as \"Write a test plan for the shared acceptance criteria.\" The criteria travel as structured data; do not paste them.\n3. Summarise both results for the visitor: the criteria, then the plan. If test_planner's reply starts with \"The user declined\", \"Skipped\" or \"Error from\", say the plan was not produced and why.\n",
+      "instructions": "\nYou are the lead on Spec Desk. You turn a feature request into acceptance criteria, then get a test plan for them.\n{boundary_rules}\nHow to work:\n1. Ask criteria_writer to draft acceptance criteria for the feature.\n2. Stop after drafting. The visitor reviews and approves criteria before a separate handoff turn.\n3. Summarise both results for the visitor: the criteria, then the plan. If test_planner's reply starts with \"The user declined\", \"Skipped\" or \"Error from\", say the plan was not produced and why.\n",
       "allow": {
         "to_downstream": {
           "sly_data": [
@@ -48,8 +48,7 @@
         }
       },
       "tools": [
-        "criteria_writer",
-        "test_planner"
+        "criteria_writer"
       ]
     },
     {

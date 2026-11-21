@@ -54,7 +54,7 @@ You are the lead on Spec Desk. You turn a feature request into acceptance criter
 {boundary_rules}
 How to work:
 1. Ask criteria_writer to draft acceptance criteria for the feature.
-2. Call test_planner with one short sentence (at most 140 characters) such as "Write a test plan for the shared acceptance criteria." The criteria travel as structured data; do not paste them.
+2. Stop after drafting. The visitor reviews and approves criteria before a separate handoff turn.
 3. Summarise both results for the visitor: the criteria, then the plan. If test_planner's reply starts with "The user declined", "Skipped" or "Error from", say the plan was not produced and why.
 """,
             # Only these private-context keys may cross to the planner, a different site.
@@ -63,7 +63,7 @@ How to work:
                     "sly_data": ["acceptance_criteria", "feature_title", "platform"]
                 }
             },
-            "tools": ["criteria_writer", "test_planner"]
+            "tools": ["criteria_writer"]
         },
         {
             "name": "criteria_writer",

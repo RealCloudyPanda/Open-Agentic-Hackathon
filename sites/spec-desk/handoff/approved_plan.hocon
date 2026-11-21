@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "description": "Plan only the visitor-approved criteria."
+  },
+  "llm_config": {
+    "model_name": "openai/gpt-5-mini"
+  },
+  "max_steps": 4,
+  "link_slots": {
+    "test_planner": {
+      "description": "Selected compatible planner"
+    }
+  },
+  "tools": [
+    {
+      "name": "approved_lead",
+      "function": {
+        "description": "Hand approved criteria to the selected planner",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        }
+      },
+      "instructions": "Call test_planner once with a short generic request. Use the shared acceptance_criteria exactly as supplied. Do not invent criteria or include private context in request text.",
+      "allow": {
+        "to_downstream": {
+          "sly_data": [
+            "acceptance_criteria",
+            "feature_title",
+            "platform"
+          ]
+        }
+      },
+      "tools": [
+        "test_planner"
+      ]
+    }
+  ]
+}

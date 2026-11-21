@@ -90,7 +90,7 @@ export async function buildSite(folder) {
 
 export async function siteFolders(root = ROOT) {
   const config = JSON.parse(await readFile(path.join(root, "sites.config.json"), "utf8"));
-  return config.sites.map((s) => path.join(root, s.folder));
+  return [...config.sites.map((s) => path.join(root, s.folder)), path.join(root, "sites/spec-desk/handoff")];
 }
 
 async function main() {

@@ -1,0 +1,70 @@
+{
+  "brand": "Spec Desk",
+  "networks": [
+    {
+      "name": "approved_plan",
+      "front_man": "approved_lead",
+      "hocon": "./approved_plan.network.json",
+      "description": "Plans the approved review snapshot"
+    }
+  ],
+  "llm_router": {
+    "base_url": "browser://mock",
+    "mock": true,
+    "byok_router": "https://openrouter.ai/api/v1"
+  },
+  "allowed_peers": [
+    "http://localhost:5174"
+  ],
+  "peer_policy": {
+    "mode": "closed",
+    "deny_origins": [],
+    "note": "Contacts only the test planner bound to the test_planner slot, after the visitor agrees each time. Visitor-chosen planners are added for that visitor only, after a compatibility check."
+  },
+  "theme": {
+    "primary": "#B3401A"
+  },
+  "linking": {
+    "protocol": "nsdeploy-link/v1",
+    "exports": [
+      {
+        "network": "approved_plan",
+        "front_man": "approved_lead",
+        "aliases": [
+          "approved_plan"
+        ],
+        "url": "approved_plan"
+      }
+    ],
+    "imports": [
+      {
+        "reference": "test_planner",
+        "network": "approved_plan",
+        "description": "Turns acceptance criteria into a test plan.",
+        "x-spec-relay-contract": {
+          "sends_sly_data": [
+            "acceptance_criteria",
+            "feature_title",
+            "platform"
+          ],
+          "requires_sly_data": [
+            "acceptance_criteria"
+          ],
+          "request": "Short natural-language request (no names, no notes).",
+          "expects": "A test plan: cases or charters with priorities."
+        }
+      }
+    ],
+    "link_updates": {
+      "mode": "browser-local"
+    }
+  },
+  "deployment": {
+    "mode": "static",
+    "self_contained_runtime": true,
+    "browser_mock": true,
+    "direct_byok": true,
+    "direct_mcp_requires_cors": true,
+    "public_mcp_facade": false
+  }
+}
