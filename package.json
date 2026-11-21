@@ -5,13 +5,16 @@
   "description": "Hand a spec to another site's agents without handing over your secrets, then swap that site by URL.",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server/serve.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test",
     "build:networks": "node scripts/build-networks.mjs",
-    "check:peer": "node tools/peer-check.mjs"
+    "check:peer": "node tools/peer-check.mjs",
+    "build:static": "node scripts/build-static.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1"
