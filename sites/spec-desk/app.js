@@ -31,6 +31,19 @@ let booted = null;
 let binding = null;
 let running = false;
 let peerBoundary;
+let handoff = null;
+let reviewSnapshot = null;
+const review = document.createElement("section");
+review.className = "card";
+review.hidden = true;
+review.innerHTML = '<h2>Review criteria</h2><p>Edit the suggested checks, then approve this exact snapshot for planning.</p><textarea id="review-criteria" rows="12" aria-label="Reviewed criteria JSON"></textarea><p id="review-status" role="status"></p><button id="approve-plan" class="btn primary" type="button">Approve and plan</button>';
+$("#results").before(review);
+const invalidate = () => {
+  if (window.__relay?.last?.plan) $("#review-status").textContent = "Plan is stale after edits. Approve and plan again.";
+};
+review.addEventListener("input", invalidate);
+form.addEventListener("input", () => { reviewSnapshot = null; review.hidden = true; invalidate(); });
+$("#approve-plan").addEventListener("click", () => runRelay(true));
 
 const intake = () => Object.fromEntries(Object.keys(SAMPLE).map((k) => [k, form.elements[k].value.trim()]));
 
@@ -185,14 +198,20 @@ function receiptCard(r, consentLog, events) {
 }
 
 // ---- run ---------------------------------------------------------------------
-async function runRelay() {
+async function runRelay(approved = false) {
+  approved = approved === true;
+  if (approved && (!reviewSnapshot || JSON.stringify(intake()) !== reviewSnapshot)) return;
   if (running || !booted || peerBoundary.isActive()) return;
   running = true;
   $("#run").disabled = true;
   $("#swap-btn").disabled = true;
   $("#reset-btn").disabled = true;
-  const { engine, trace } = booted;
-  binding = applyBinding(engine, localStorage);
+  const { engine, trace } = approved ? handoff : booted;
+  binding = applyBinding(booted.engine, localStorage);
+  if (approved) {
+    engine.top.network.setLink(SLOT, binding.target);
+    engine.runtimeAllowedPeers.add(new URL(binding.target).origin);
+  }
   renderSlot();
   engine.resetHistory();
   tl.innerHTML = "";
@@ -200,7 +219,22 @@ async function runRelay() {
   $("#results").innerHTML = "";
   const since = trace.events.at(-1)?.seq ?? -1;
   const values = intake();
-  const slyData = buildSlyData(values, unticked);
+  let slyData = buildSlyData(values, unticked);
+  if (approved) {
+    try {
+      const criteria = JSON.parse($("#review-criteria").value);
+      if (!Array.isArray(criteria) || !criteria.length || criteria.some((c) => !c.id || !c.title)) throw new Error("Provide an array of criteria with IDs and titles.");
+      slyData = { acceptance_criteria: criteria };
+      for (const k of ["feature_title", "platform"]) if (!unticked.has(k)) slyData[k] = values[k];
+    } catch (error) {
+      $("#review-status").textContent = error.message;
+      running = false;
+      $("#run").disabled = false;
+      $("#swap-btn").disabled = false;
+      $("#reset-btn").disabled = false;
+      return;
+    }
+  }
   const crossing = allowed.filter((k) => k === "acceptance_criteria" || (k in slyData));
   const staying = Object.keys(SAMPLE).filter((k) => !crossing.includes(k));
   const withheld = Object.fromEntries(staying.filter((k) => k !== "feature_request").map((k) => [k, values[k]]));
@@ -222,7 +256,7 @@ async function runRelay() {
   };
   trace.addEventListener("event", onTrace);
   try {
-    await engine.runTurn(values.feature_request || "Draft acceptance criteria.", { slyData, peerConsent });
+    await engine.runTurn(approved ? "Write a test plan for the approved acceptance criteria." : values.feature_request || "Draft acceptance criteria.", { slyData, peerConsent });
   } catch (err) {
     step("The run stopped", "stop", esc(err.message));
   } finally {
@@ -231,7 +265,13 @@ async function runRelay() {
   const events = trace.events.filter((e) => e.seq > since);
   const { criteria, plan, receipt, peerAnswer } = artifactsFrom(trace.events, { since, localOrigin: location.host });
   const out = [];
-  if (criteria) out.push(criteriaCard(criteria));
+  if (criteria) {
+    out.push(criteriaCard(criteria));
+    reviewSnapshot = JSON.stringify(values);
+    $("#review-criteria").value = JSON.stringify(criteria.criteria, null, 2);
+    $("#review-status").textContent = "Draft ready for review. No planner contacted.";
+    review.hidden = false;
+  }
   if (plan) out.push(planCard(plan));
   else if (peerAnswer) out.push(`<article class="card art enter"><header><h3>Planner reply excerpt</h3>${stamp(peerAnswer.origin)}</header><p>${esc(peerAnswer.text)}</p></article>`);
   out.push(receiptCard(receipt, consentLog, events));
@@ -243,7 +283,7 @@ async function runRelay() {
   $("#swap-btn").disabled = false;
   $("#reset-btn").disabled = false;
 }
-$("#run").addEventListener("click", runRelay);
+$("#run").addEventListener("click", () => runRelay());
 
 // ---- swap --------------------------------------------------------------------
 const swap = $("#swap");
@@ -324,6 +364,15 @@ if (booted) {
   contract = imp?.["x-spec-relay-contract"] || contract;
   binding = applyBinding(booted.engine, localStorage);
   peerBoundary = installPeerBoundary(booted.engine, SLOT);
+  const { Engine, TraceBus } = await import("/runtime/index.js");
+  const handoffTrace = new TraceBus();
+  const handoffEngine = new Engine({ originUrl: `${location.origin}/handoff`, trace: handoffTrace,
+    sandboxWorkerUrl: "/runtime/sandbox-worker.js", byokKey: booted.engine.byokKey,
+    routerOverride: booted.engine.routerOverride });
+  handoffEngine.modelOverride = booted.engine.modelOverride;
+  await handoffEngine.loadTop();
+  handoff = { engine: handoffEngine, trace: handoffTrace };
+  installPeerBoundary(handoffEngine, SLOT);
   window.__relay.booted = booted;
   $("#run").disabled = false;
   $("#swap-btn").disabled = false;
