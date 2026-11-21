@@ -36,3 +36,44 @@ Record on the **public** URLs once deployed (or loopback if you must, but say so
 **Elevator pitch** (≤200 chars):
 
 > Hand a spec to another site's agents without handing over your secrets, then swap that site out by URL. Three open agentic websites, a consent card, and a field-level ledger.
+
+**About the project** (Devpost's markdown field):
+
+```markdown
+## The problem
+A product engineer has a feature request plus context that must not leave the team: the customer's name
+and internal notes. They want acceptance criteria and a test plan. Today they paste everything into
+whichever AI tool is open, and they can't change that tool without re-integrating it.
+
+## What it does
+Spec Relay is three independent open agentic websites. **Spec Desk** turns a feature request into acceptance
+criteria with its own agent network. When it needs a test plan, it loads **Test Planner**'s published network
+from another origin and runs it in your browser, on your own model router, after a consent card names the
+origin, the purpose and the exact request. A handoff ledger shows which private-context fields cross (the
+criteria, title and platform) and which never leave (customer name, internal notes); the runtime's published
+`sly_data` allow rule enforces it, and a boundary receipt records it. Then swap the planner for **Risk
+Radar**, a differently shaped network on a third origin, by pasting its URL. A slot-contract compatibility
+checker reads its public files first, and Spec Desk's code and published files never change.
+
+## How I built it
+On the Worldwide Agentic Web MVP spec (Profile 0.3) and its reference nsDeploy browser runtime, vendored
+unmodified (Apache-2.0). Each site publishes `agent-manifest.json`, a network JSON built from canonical Neuro
+SAN HOCON by the runtime's own validator, `links.json`, and a sandboxed coded-tool bundle with an SRI digest,
+all served with CORS. A keyless Sample mode uses the runtime's `browser://mock` router, so every screen is
+clickable without a key; a live provider key can be entered in the runtime's own settings.
+
+## Community tool
+The slot-contract compatibility checker ships as an ES module (used inside the swap sheet) and a Node CLI
+(`tools/peer-check.mjs`), so any agent site can test whether a peer fits its link slot.
+
+## Challenges
+Keeping a visitor's key away from peers: the runtime mirrors BYOK profiles into per-host cookies on loopback,
+so the three sites use three host names, not three ports. Peer networks always run on the caller's router.
+
+## What's next
+[[OWNER: from your own judgement, e.g. more peer planners, publishing the checker to npm.]]
+
+## Built with AI assistance
+Planning, code and docs were drafted with AI coding assistants under my direction and checked by running
+the unit and browser tests. [[OWNER: name the assistants you used.]]
+```
