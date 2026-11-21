@@ -103,6 +103,9 @@ function fill(text, vars) {
 /** Pure function: same input, same output. */
 export function draftCriteria({ feature_request, feature_title, platform, internal_notes, request } = {}) {
   const featureText = asText(feature_request) || asText(request);
+  const requirements = [...featureText.matchAll(/[^.!?\n]+[.!?]?/g)].filter((m) => m[0].trim()).map((m, i) => ({
+    id: `REQ-${i + 1}`, text: m[0].trim(), source: { field: "feature_request", start: m.index + m[0].indexOf(m[0].trim()), end: m.index + m[0].trimEnd().length },
+  }));
   const title = asText(feature_title).trim();
   const plat = asText(platform).trim();
   const dataLossRisk = DATA_LOSS.test(asText(internal_notes));
@@ -131,6 +134,8 @@ export function draftCriteria({ feature_request, feature_title, platform, intern
     }
     return {
       id: `AC-${i + 1}`,
+      status: "suggested_check",
+      requirement_ids: requirements.filter((r) => LIBRARY.some((g) => g.match.test(r.text) && c.tags.includes(g.topic))).map((r) => r.id),
       title: fill(c.title, vars),
       given: fill(c.given, vars),
       when: fill(c.when, vars),
@@ -144,6 +149,7 @@ export function draftCriteria({ feature_request, feature_title, platform, intern
     feature_title: title || null,
     platform: plat || null,
     topics: topics.length ? topics : ["generic"],
+    requirements,
     criteria,
     open_questions: [
       topics.includes("undo") ? "How many steps of undo history should be kept?" : "What is out of scope for the first release?",

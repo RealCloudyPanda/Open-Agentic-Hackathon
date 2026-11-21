@@ -30,7 +30,7 @@
   },
   "coded_tools": {
     "bundle": "./tools/criteria-drafter.js",
-    "integrity": "sha256-Psgdy6ymhDY4yEDFoB1EMBi4jLhaFmQTKVgbWsJkHFs="
+    "integrity": "sha256-jwFNvQGzGDrdR+K+JH1HMzWvUiper7rMwgFL39CIU5c="
   },
   "theme": {
     "primary": "#B3401A"
