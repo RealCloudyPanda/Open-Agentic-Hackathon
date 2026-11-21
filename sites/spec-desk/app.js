@@ -1,5 +1,6 @@
 // Spec Desk page: intake, handoff ledger, consent card, relay timeline, results, swap.
 // Drives the unmodified reference runtime through its public Engine API.
+import { relayMarkdown, downloadReview } from "/shared/export.js";
 import { bootSite } from "/shared/boot-site.js";
 import { artifactsFrom, redactedTrace } from "/shared/trace-artifacts.js";
 import { checkPeer, peerTarget } from "/shared/peer-check.js";
@@ -33,12 +34,20 @@ let running = false;
 let peerBoundary;
 let handoff = null;
 let reviewSnapshot = null;
+let draftArtifact = null;
+let stale = false;
+const exportButton = document.createElement("button");
+exportButton.type = "button"; exportButton.className = "btn"; exportButton.textContent = "Download review Markdown";
+exportButton.hidden = true;
+$("#results").before(exportButton);
+exportButton.addEventListener("click", () => downloadReview(relayMarkdown({ ...window.__relay.last, criteria: draftArtifact, stale })));
 const review = document.createElement("section");
 review.className = "card";
 review.hidden = true;
 review.innerHTML = '<h2>Review criteria</h2><p>Edit the suggested checks, then approve this exact snapshot for planning.</p><textarea id="review-criteria" rows="12" aria-label="Reviewed criteria JSON"></textarea><p id="review-status" role="status"></p><button id="approve-plan" class="btn primary" type="button">Approve and plan</button>';
 $("#results").before(review);
 const invalidate = () => {
+  stale = true;
   if (window.__relay?.last?.plan) $("#review-status").textContent = "Plan is stale after edits. Approve and plan again.";
 };
 review.addEventListener("input", invalidate);
@@ -265,7 +274,10 @@ async function runRelay(approved = false) {
   const events = trace.events.filter((e) => e.seq > since);
   const { criteria, plan, receipt, peerAnswer } = artifactsFrom(trace.events, { since, localOrigin: location.host });
   const out = [];
+  stale = JSON.stringify(intake()) !== JSON.stringify(values);
+  exportButton.hidden = false;
   if (criteria) {
+    draftArtifact = criteria;
     out.push(criteriaCard(criteria));
     reviewSnapshot = JSON.stringify(values);
     $("#review-criteria").value = JSON.stringify(criteria.criteria, null, 2);
@@ -277,7 +289,7 @@ async function runRelay(approved = false) {
   out.push(receiptCard(receipt, consentLog, events));
   step("Receipt written");
   $("#results").innerHTML = out.join("");
-  window.__relay.last = { criteria, plan, receipt, consentLog };
+  window.__relay.last = { criteria, plan, receipt, consentLog, approvedCriteria: approved ? slyData.acceptance_criteria : null };
   running = false;
   $("#run").disabled = false;
   $("#swap-btn").disabled = false;
