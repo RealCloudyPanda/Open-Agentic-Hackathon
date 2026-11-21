@@ -33,7 +33,10 @@ export async function buildStatic(configFile, output = path.join(ROOT, 'dist')) 
         if (entry.isDirectory()) await rewrite(file);
         else if (/\.(json|js|html|hocon)$/.test(entry.name)) {
           let text = await readFile(file, 'utf8');
-          for (const [from, to] of replacements) text = text.split(from).join(to);
+          for (const [from, to] of replacements) {
+            text = text.split(from).join(to);
+            text = text.split(new URL(from).host).join(new URL(to).host);
+          }
           await writeFile(file, text);
         }
       }
