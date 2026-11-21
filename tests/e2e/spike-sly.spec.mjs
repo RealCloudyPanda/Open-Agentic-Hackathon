@@ -8,7 +8,10 @@ test.afterAll(async () => { await srv?.close(); });
 
 const SLY = { feature_request: "Add undo", feature_title: "Undo/redo", platform: "Web", customer_name: "Acme Docs", internal_notes: "Pilot may churn" };
 
-async function relay(page) {
+async function relay(page, flat = false) {
+  const net = JSON.parse(await readFile(new URL("../../sites/spec-desk/spec_desk.network.json", import.meta.url), "utf8"));
+  net.tools[0].tools = [flat ? "criteria_drafter" : "criteria_writer", "test_planner"];
+  await page.route("**/spec_desk.network.json", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(net) }));
   await page.goto("http://127.0.0.1:5173/");
   await page.waitForSelector("body[data-ready='1']");
   return page.evaluate(async (sly) => {
@@ -32,10 +35,7 @@ test("nested drafter: only allowed keys cross, and the peer tool sees exactly th
 });
 
 test("flat drafter variant also works", async ({ page }) => {
-  const net = JSON.parse(await readFile(new URL("../../sites/spec-desk/spec_desk.network.json", import.meta.url), "utf8"));
-  net.tools[0].tools = ["criteria_drafter", "test_planner"];
-  await page.route("**/spec_desk.network.json", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(net) }));
-  const r = await relay(page);
+  const r = await relay(page, true);
   expect(r.sent).toEqual(EXPECT);
   expect(r.received).toEqual(EXPECT);
 });

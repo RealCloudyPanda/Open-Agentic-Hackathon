@@ -16,6 +16,8 @@ async function open(page) {
 test("relay: consent before contact, allowed keys only, no credentials", async ({ page }) => {
   await open(page);
   await page.click("#run");
+  await page.waitForSelector("#review-criteria");
+  await page.click("#approve-plan");
   await page.waitForSelector("#consent[open]");
   expect(peer("test-planner")).toHaveLength(0);
   await expect(page.locator("#consent-title")).toContainText("localhost:5174");
@@ -36,6 +38,8 @@ test("unticking platform keeps it home", async ({ page }) => {
   await open(page);
   await page.uncheck('#ledger [data-k="platform"]');
   await page.click("#run");
+  await page.waitForSelector("#review-criteria");
+  await page.click("#approve-plan");
   await page.click("#consent [data-d=allow]");
   await page.waitForSelector(".receipt");
   const last = await page.evaluate(() => window.__relay.last);
@@ -45,6 +49,8 @@ test("unticking platform keeps it home", async ({ page }) => {
 test("decline: nothing reaches the peer", async ({ page }) => {
   await open(page);
   await page.click("#run");
+  await page.waitForSelector("#review-criteria");
+  await page.click("#approve-plan");
   await page.waitForSelector("#consent[open]");
   await page.keyboard.press("Escape");
   await page.waitForSelector(".receipt");
@@ -57,6 +63,11 @@ test("a short customer name in the request blocks approval", async ({ page }) =>
   await page.locator('[name="customer_name"]').fill("Bob");
   await page.locator('[name="feature_request"]').fill("Add undo for Bob.");
   await page.click("#run");
+  await page.waitForSelector("#review-criteria");
+  const rows = JSON.parse(await page.locator("#review-criteria").inputValue());
+  rows[0].title = "Bob must approve";
+  await page.locator("#review-criteria").fill(JSON.stringify(rows));
+  await page.click("#approve-plan");
   await expect(page.locator("#consent .guard")).toContainText("customer_name");
   await expect(page.locator("#consent [data-d=allow]")).toBeDisabled();
   await page.click("#consent [data-d=decline]");
@@ -84,6 +95,8 @@ test("swap by URL: wrong name refused, Risk Radar used, links.json untouched", a
   await expect(page.locator("#slot-owner")).toContainText("your choice");
   const checkedReads = peer("risk-radar").length;
   await page.click("#run");
+  await page.waitForSelector("#review-criteria");
+  await page.click("#approve-plan");
   await expect(page.locator("#consent-title")).toContainText("[::1]:5175");
   expect(peer("risk-radar")).toHaveLength(checkedReads);
   await page.click("#consent [data-d=allow]");

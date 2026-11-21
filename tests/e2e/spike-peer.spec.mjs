@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { startServers } from "../../server/serve.mjs";
 
 let srv;
@@ -17,6 +18,9 @@ async function run(page, decision) {
     peerCountAtConsent = peerLogs().length;
     return decision;
   });
+  const fixture = JSON.parse(await readFile(new URL("../../sites/spec-desk/spec_desk.network.json", import.meta.url), "utf8"));
+  fixture.tools[0].tools = ["criteria_writer", "test_planner"];
+  await page.route("**/spec_desk.network.json", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(fixture) }));
   await page.goto("http://127.0.0.1:5173/");
   await page.waitForSelector("body[data-ready='1']");
   const answer = await page.evaluate(async () => {
