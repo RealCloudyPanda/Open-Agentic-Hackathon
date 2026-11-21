@@ -109,3 +109,33 @@ test("swap by URL: wrong name refused, Risk Radar used, links.json untouched", a
   await page.click("#reset-btn");
   await expect(page.locator("#slot-target")).toHaveText("localhost:5174/test_planner");
 });
+
+test('review edits are the actual peer payload and export becomes stale', async ({ page }) => {
+  await open(page);
+  await page.click('#run');
+  await page.waitForSelector('#review-criteria');
+  expect(peer('test-planner')).toHaveLength(0);
+  const criteria = [{ id: 'AC-EDIT', title: 'Reviewed unique control', given: 'the new page', when: 'click the edited button', then: 'the edited message appears', status: 'tester reviewed', requirement_ids: ['REQ-1'] }];
+  await page.locator('#review-criteria').fill(JSON.stringify(criteria));
+  await page.click('#approve-plan');
+  await expect(page.locator('#consent')).toContainText('Reviewed unique control');
+  await page.click('#consent [data-d=allow]');
+  await page.waitForSelector('[aria-label="Test plan"]');
+  const last = await page.evaluate(() => window.__relay.last);
+  expect(last.approvedCriteria).toEqual(criteria);
+  expect(last.plan.plan.cases[0].criterion).toBe('AC-EDIT');
+  expect(last.plan.plan.cases[0].steps.join(' ')).toContain('edited button');
+  await page.locator('#review-criteria').fill(JSON.stringify([{ ...criteria[0], title: 'Later edit' }]));
+  await expect(page.locator('#review-status')).toContainText('stale');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download review Markdown' }).click();
+  expect((await download).suggestedFilename()).toBe('spec-relay-review.md');
+});
+
+test('standalone drills exercise actual runtime policy functions', async ({ page }) => {
+  await page.goto('http://127.0.0.1:5173/drills.html');
+  await page.click('#run-drills');
+  const rows = JSON.parse(await page.locator('#drills').textContent());
+  expect(rows).toHaveLength(3);
+  expect(rows.every((r) => r.passed)).toBe(true);
+});
