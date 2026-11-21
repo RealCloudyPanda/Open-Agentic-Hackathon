@@ -14,3 +14,17 @@ Draft for the owner. Nothing here has been submitted. Rules checked on cognizant
 | Screenshots | One or more required. | Five in `docs/images/`. |
 | Community tools | Optional; tools shared with the community count toward Potential Impact. | The compatibility checker (an ES module, inside the swap sheet, and a Node CLI). |
 | Judging (equally weighted) | Technological Implementation (use of the open agentic web spec), Design, Potential Impact, Quality of the Idea. | |
+
+## Video script (target 1:50, under 2:00, your own voice)
+
+Record on the **public** URLs once deployed (or loopback if you must, but say so). 1440×900, zoom 110%, terminal on the right third for 1:00–1:15. Every origin on screen must be the real one.
+
+| Time | Screen | Narration (you read it) |
+| --- | --- | --- |
+| 0:00–0:15 | Consent card mid-relay: origin, purpose, the exact request, fields that cross and stay. Click **Allow**. | "Before my private spec goes anywhere, the runtime stops and tells me which site, why, and exactly which fields cross. The customer's name and our internal notes never do." |
+| 0:15–0:28 | Spec Desk hero with three origin stamps. | "This is Spec Relay: three separate agentic websites. Their agent networks are published as open files, so any site can run them in your browser." |
+| 0:28–0:43 | Intake and ledger; **Run relay**; criteria card. | "I paste a feature request. Spec Desk's agents draft acceptance criteria right here. This is sample mode: no AI key, fully deterministic." |
+| 0:43–1:00 | Timeline: manifest, network, links and tool bundle fetched from the planner's origin; plan card stamped with that origin. | "Spec Desk fetched the planner's published network and ran it here, on my own model router." |
+| 1:00–1:15 | Boundary receipt next to the planner's server log line. | "The receipt and the planner's own server log agree: it got the criteria, not the customer or the notes, and never my key." |
+| 1:15–1:35 | **Swap** → Risk Radar → **Check compatibility** (twelve checks pass) → **Use this planner** → run. Risk matrix stamped with the third origin. | "Now I swap the planner by URL. The checker reads Risk Radar's public files, it passes, and the next run uses a different site, without changing Spec Desk's code." |
+| 1:35–1:50 | Terminal: `node tools/peer-check.mjs` against the planner URL, all checks passing. End card with the Spec Desk URL. | "The same checker is open source as a module and a command-line tool, so any agent site can test whether a peer fits before trusting it." |
