@@ -40,6 +40,6 @@ function render(p) {
       ${p.charters.map((c) => `<tr><td class="id">${c.id}</td><td>${esc(c.mission)}</td><td class="id">${c.timebox_min} min</td></tr>`).join("")}</tbody></table></article>`;
   }
   return `<article class="card art enter"><h3>Test plan · ${p.plan.cases.length} cases</h3><table><thead><tr><th>Case</th><th>Title</th><th>Type</th><th>Level</th><th>Priority</th></tr></thead><tbody>
-    ${p.plan.cases.map((c) => `<tr><td class="id">${c.id}</td><td>${esc(c.title)}<div class="gwt">${esc(c.expected)}</div></td><td>${c.type}</td><td>${c.level}</td><td class="id">${c.priority}</td></tr>`).join("")}</tbody></table>
+    ${p.plan.cases.map((c) => `<tr><td class="id">${c.id}</td><td>${esc(c.title)}<ol>${(c.steps || []).map((s) => `<li>${esc(s)}</li>`).join("")}</ol><div class="gwt">Expected: ${esc(c.expected)}</div></td><td>${c.type}</td><td>${c.level}</td><td class="id">${c.priority}</td></tr>`).join("")}</tbody></table>
     <p>${p.plan.platform_notes.map(esc).join(" ")}</p></article>`;
 }

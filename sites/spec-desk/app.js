@@ -170,8 +170,8 @@ function planCard(p) {
   const cases = p.plan.cases;
   return `<article class="card art enter" aria-label="Test plan">
     <header><h3>Test plan · ${cases.length} cases</h3>${stamp(p.origin, p.origin === "localhost:5174" ? " · Test Planner" : "")}</header>
-    <div class="tablewrap"><table><thead><tr><th>Case</th><th>Covers</th><th>Type</th><th>Level</th><th>Priority</th></tr></thead><tbody>
-    ${cases.map((c) => `<tr><td class="id">${esc(c.id)}</td><td class="id">${esc(c.criterion)}</td><td>${esc(c.type)}</td><td>${esc(c.level)}</td><td class="id">${esc(c.priority)}</td></tr>`).join("")}
+    <div class="tablewrap"><table><thead><tr><th>Case</th><th>Steps and expected result</th><th>Covers</th><th>Type</th><th>Level</th><th>Priority</th></tr></thead><tbody>
+    ${cases.map((c) => `<tr><td class="id">${esc(c.id)}</td><td>${esc(c.title)}<ol>${(c.steps || []).map((s) => `<li>${esc(s)}</li>`).join("")}</ol><b>Expected:</b> ${esc(c.expected)}</td><td class="id">${esc(c.criterion)}</td><td>${esc(c.type)}</td><td>${esc(c.level)}</td><td class="id">${esc(c.priority)}</td></tr>`).join("")}
     </tbody></table></div>
     <p class="received">${p.plan.platform_notes.map(esc).join(" ")}</p>${recv}</article>`;
 }
