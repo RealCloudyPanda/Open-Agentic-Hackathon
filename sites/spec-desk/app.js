@@ -1,5 +1,3 @@
-// Spec Desk page: intake, handoff ledger, consent card, relay timeline, results, swap.
-// Drives the unmodified reference runtime through its public Engine API.
 import { reviewedCriteria } from "/shared/review.js";
 import { relayMarkdown, downloadReview } from "/shared/export.js";
 import { bootSite } from "/shared/boot-site.js";
@@ -95,7 +93,6 @@ function renderSlot() {
   $("#reset-btn").hidden = !binding?.visitorChoice;
 }
 
-// ---- consent card ------------------------------------------------------------
 const dlg = $("#consent");
 function consentCard({ origin, purpose, requestText = null, crossing = [], staying = [], withheld = {}, routerHost, checker = false, payload = null }) {
   const leaks = requestText ? findLeaks(requestText + (payload ? JSON.stringify(payload) : ""), withheld) : [];
@@ -119,7 +116,6 @@ function consentCard({ origin, purpose, requestText = null, crossing = [], stayi
   });
 }
 
-// ---- timeline ----------------------------------------------------------------
 const tl = $("#timeline");
 const pendingSteps = new Map();
 function step(text, cls = "done", detail = "") {
@@ -157,7 +153,6 @@ function onTrace(e) {
   if ((ev.kind === "composition_limit" || ev.kind === "composition_skip")) step("Skipped by the runtime", "stop", esc(ev.reason));
 }
 
-// ---- results -----------------------------------------------------------------
 function criteriaCard(c) {
   return `<article class="card art enter" aria-label="Acceptance criteria">
     <header><h3>Acceptance criteria</h3>${stamp(c.origin, " · Spec Desk")}</header>
@@ -209,7 +204,6 @@ function receiptCard(r, consentLog, events) {
   </article>`;
 }
 
-// ---- run ---------------------------------------------------------------------
 async function runRelay(approved = false) {
   approved = approved === true;
   if (approved && (!reviewSnapshot || JSON.stringify(intake()) !== reviewSnapshot)) return;
@@ -305,7 +299,6 @@ async function runRelay(approved = false) {
 }
 $("#run").addEventListener("click", () => runRelay());
 
-// ---- swap --------------------------------------------------------------------
 const swap = $("#swap");
 let checked = null;
 let checkVersion = 0;
@@ -377,7 +370,6 @@ $("#reset-btn").addEventListener("click", () => {
   invalidate();
 });
 
-// ---- boot --------------------------------------------------------------------
 window.__relay = { run: runRelay };
 booted = await bootSite({ consoleEl: $("#agent-app"), badgeEl: $("#mode") });
 if (booted) {

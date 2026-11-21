@@ -1,6 +1,3 @@
-// Handoff ledger: which intake fields cross to the planner, computed from the loaded
-// network's own allow rule (not hard-coded) and the visitor's choices.
-
 export const FIELDS = [
   { key: "acceptance_criteria", label: "Acceptance criteria", generated: true },
   { key: "feature_title", label: "Feature title" },
@@ -16,7 +13,6 @@ export function allowRule(networkConfig) {
   return front.allow?.to_downstream?.sly_data || [];
 }
 
-/** rows: [{key,label,state:"crosses"|"kept"|"never", toggleable, reason}] */
 export function ledgerRows(allowed, required = ["acceptance_criteria"], unticked = new Set()) {
   return FIELDS.map((f) => {
     const inRule = allowed.includes(f.key) || allowed.includes("*");
@@ -28,14 +24,12 @@ export function ledgerRows(allowed, required = ["acceptance_criteria"], unticked
   });
 }
 
-/** All local fields minus the ones the visitor unticked. */
 export function buildSlyData(intake, unticked = new Set()) {
   const out = {};
   for (const [k, v] of Object.entries(intake)) if (!unticked.has(k) && v !== "") out[k] = v;
   return out;
 }
 
-/** Match short values as whole words and longer values as literal text. */
 export function findLeaks(requestText, withheld) {
   const text = String(requestText || "").toLowerCase();
   return Object.entries(withheld)

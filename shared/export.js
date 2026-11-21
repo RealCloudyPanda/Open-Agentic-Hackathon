@@ -1,4 +1,3 @@
-/** A local review artifact, including failures and receipt; never claims a completed plan. */
 export function relayMarkdown({ criteria, plan, receipt, approvedCriteria, stale = false, failure, consentLog = [] } = {}) {
   const out = ['# Spec Relay review', '', stale ? '**Stale: inputs changed; review and plan again.**' : 'Review the suggested checks before implementation.', '', 'Generated checks and plans have not been executed.'];
   if (criteria?.requirements) for (const r of criteria.requirements) out.push(`- ${r.id}: ${r.text} (feature_request [${r.source.start}, ${r.source.end}))`);

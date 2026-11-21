@@ -1,7 +1,5 @@
 import { fetchPeerArtifact, peerTarget, runtimeArtifactUrl } from "../../../shared/peer-check.js";
 
-// The reference engine uses global fetch for peer artifacts. Scope those calls
-// to the selected planner and the current turn without changing the runtime.
 export function installPeerBoundary(engine, slot, transport = globalThis) {
   const fetch = transport.fetch.bind(transport);
   const runTurn = engine.runTurn.bind(engine);
@@ -9,8 +7,6 @@ export function installPeerBoundary(engine, slot, transport = globalThis) {
   const resolveRemote = engine.resolveRemote.bind(engine);
   let active = false;
 
-  // The page has already applied the effective binding. The stock resolver
-  // would persist the publisher default and admit its origin before consent.
   engine.resolveLink = (reference, network, ...args) => {
     if (network === engine.top.network && reference === slot) return network.getLink(slot);
     return resolveLink(reference, network, ...args);

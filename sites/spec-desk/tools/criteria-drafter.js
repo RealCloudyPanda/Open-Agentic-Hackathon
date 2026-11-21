@@ -1,11 +1,3 @@
-// Spec Desk coded tool: CriteriaDrafter.
-// Turns a feature request into 4–9 Given/When/Then acceptance criteria, deterministically.
-// Self-contained (no imports): the runtime runs it in a sandboxed worker with no network.
-//
-// Reads sly_data: feature_request, feature_title, platform, internal_notes.
-// Writes sly_data: acceptance_criteria.
-// internal_notes may raise priority and add a risk tag, but its text is never copied.
-
 const LIBRARY = [
   {
     topic: "undo",
@@ -80,7 +72,6 @@ const GENERIC = [
   { key: "persist", title: "Results persist after a reload", given: "a user who has just used {feature}", when: "they reload the page", then: "the result is still there", tags: ["persistence"] },
 ];
 
-// Words in internal notes that raise the risk of data loss. Only the flag is used.
 const DATA_LOSS = /\b(lost|lose|losing|loss|churn\w*|overwrit\w*|corrupt\w*|deleted)\b/i;
 
 const MAX = 9;
@@ -100,7 +91,6 @@ function fill(text, vars) {
   return text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
 }
 
-/** Pure function: same input, same output. */
 export function draftCriteria({ feature_request, feature_title, platform, internal_notes, request } = {}) {
   const featureText = asText(feature_request) || asText(request);
   const requirements = [...featureText.matchAll(/[^.!?\n]+[.!?]?/g)].filter((m) => m[0].trim()).map((m, i) => ({
@@ -119,7 +109,7 @@ export function draftCriteria({ feature_request, feature_title, platform, intern
       picked.push(...group.items);
     }
   }
-  // Topic criteria first (at most 7), then generic ones until there are at most 9.
+
   const specific = picked.slice(0, MAX - 2);
   const chosen = [...specific, ...GENERIC.slice(0, MAX - specific.length)];
 

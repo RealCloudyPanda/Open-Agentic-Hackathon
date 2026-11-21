@@ -140,7 +140,6 @@ test('standalone drills exercise actual runtime policy functions', async ({ page
   expect(rows.every((r) => r.passed)).toBe(true);
 });
 
-
 test('malformed reviewed criteria preserve the draft and never contact a peer', async ({ page }) => {
   await open(page);
   await page.click('#run');
@@ -161,7 +160,7 @@ test('edits while a handoff is pending keep its completed plan stale', async ({ 
   await page.click('#approve-plan');
   await page.waitForSelector('#consent[open]');
   await expect(page.locator('#approve-plan')).toBeDisabled();
-  // Simulate an input event arriving while the async consent request is pending.
+
   await page.evaluate(() => {
     const input = document.querySelector('#review-criteria');
     const rows = JSON.parse(input.value); rows[0].title = 'Changed during handoff';

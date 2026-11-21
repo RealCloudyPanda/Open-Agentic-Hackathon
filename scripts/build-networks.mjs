@@ -1,12 +1,3 @@
-// Build each site's resolved network JSON from its canonical HOCON, and stamp the SRI
-// digest of its coded-tool bundle into agent-manifest.json.
-//
-// Usage: node scripts/build-networks.mjs [--check]
-//   --check  Build in memory only; exit 1 if any file on disk is out of date or invalid.
-//
-// Uses the vendored runtime's own parser and validator, so what passes here is exactly
-// what the browser runtime will accept.
-
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -20,7 +11,6 @@ export function sriDigest(text) {
   return `sha256-${createHash("sha256").update(text, "utf8").digest("base64")}`;
 }
 
-/** Collect string leaves that still hold template markers. */
 function leftovers(value, where = "", out = []) {
   if (typeof value === "string") {
     if (/\bTODO\b/.test(value) || /<[a-z_ ]+>/i.test(value)) out.push(`${where}: "${value.trim().slice(0, 60)}"`);
@@ -29,7 +19,6 @@ function leftovers(value, where = "", out = []) {
   return out;
 }
 
-/** Build one site in memory. Returns { outputs: Map<file, text>, errors: [] }. */
 export async function buildSite(folder) {
   const errors = [];
   const outputs = new Map();

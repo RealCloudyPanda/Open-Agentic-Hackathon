@@ -28,7 +28,7 @@
   },
   "coded_tools": {
     "bundle": "./tools/plan-builder.js",
-    "integrity": "sha256-GpkPjVv2023cf0HuER0t78hNTzqllYNU4L+aa7nR7C0="
+    "integrity": "sha256-Fvo6bKYQtdbAlYHMxHEWs6k7zvvXYfMBpnD6l14vA28="
   },
   "theme": {
     "primary": "#1E4F8A"

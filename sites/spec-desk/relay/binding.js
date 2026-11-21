@@ -1,5 +1,3 @@
-// Visitor binding for the test_planner slot. Stored in this browser only, in the runtime's
-// own key format. It never writes links.json: the publisher default stays published.
 import { peerTarget } from "../../../shared/peer-check.js";
 
 export const SLOT = "test_planner";
@@ -23,7 +21,6 @@ export function resetBinding(storage, base) {
   storage.removeItem(keyFor(base));
 }
 
-/** Re-apply after each load: the published links.json binding otherwise wins. */
 export function applyBinding(engine, storage) {
   const net = engine.top.network;
   const stored = readBinding(storage, engine.top.base);

@@ -20,8 +20,7 @@ async function fixtureEngine(t, change = (text) => text) {
     reads.push({ url, options });
     const file = new URL(`../sites/${folder}${url.pathname}`, import.meta.url);
     let text = await readFile(file, 'utf8');
-    // This low-level runtime fixture deliberately composes both phases. The UI
-    // uses separate staged networks, covered by relay.spec.mjs.
+
     if (url.href === desk + '/spec_desk.network.json') {
       const network = JSON.parse(text);
       network.tools[0].tools = ['criteria_writer', 'test_planner'];
@@ -45,8 +44,7 @@ async function fixtureEngine(t, change = (text) => text) {
   await engine.loadTop();
   applyBinding(engine, storage);
   installPeerBoundary(engine, SLOT);
-  // Substitute for the unavailable browser Worker. The real sandbox still reads
-  // and integrity-checks the committed bundles before the fixture tool runs.
+
   engine.sandbox.invoke = async ({ bundleUrl, integrity, className, args, permittedSly, origin }) => {
     const source = await engine.sandbox._bundleSource(bundleUrl, integrity);
     const bundle = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);

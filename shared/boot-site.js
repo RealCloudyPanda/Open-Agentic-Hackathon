@@ -1,5 +1,3 @@
-// Boot the unmodified reference runtime for this site, mount its stock UI in a console
-// drawer, and render the mode badge. If boot fails, the page keeps working and says why.
 export async function bootSite({ consoleEl, badgeEl } = {}) {
   try {
     const { boot } = await import("/runtime/index.js");

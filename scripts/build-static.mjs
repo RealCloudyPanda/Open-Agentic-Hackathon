@@ -28,7 +28,7 @@ export async function buildStatic(configFile, output = path.join(ROOT, 'dist')) 
     await cp(path.join(ROOT, 'vendor/nsdeploy-runtime'), path.join(dest, 'runtime'), { recursive: true });
     async function rewrite(dir) {
       for (const entry of await readdir(dir, { withFileTypes: true })) {
-        if (entry.name === 'runtime') continue; // vendored bytes remain unchanged
+        if (entry.name === 'runtime') continue;
         const file = path.join(dir, entry.name);
         if (entry.isDirectory()) await rewrite(file);
         else if (/\.(json|js|html|hocon)$/.test(entry.name)) {
@@ -42,7 +42,7 @@ export async function buildStatic(configFile, output = path.join(ROOT, 'dist')) 
       }
     }
     await rewrite(dest);
-    // Rebuild after replacing origins: tools contain origin stamps covered by SRI.
+
     for (const folder of [dest, path.join(dest, 'handoff')]) {
       const { outputs, errors } = await buildSite(folder);
       if (errors.length) throw new Error(errors.join('\n'));

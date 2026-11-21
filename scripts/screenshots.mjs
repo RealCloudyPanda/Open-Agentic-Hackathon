@@ -1,5 +1,3 @@
-// Capture README screenshots from the running app in sample mode (fictional data only).
-// Usage: node scripts/screenshots.mjs   (starts and stops the three servers itself)
 import { chromium } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { startServers } from "../server/serve.mjs";

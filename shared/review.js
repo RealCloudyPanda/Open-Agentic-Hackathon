@@ -1,4 +1,3 @@
-/** Validate the exact human-reviewed snapshot before it can reach a planner. */
 export function reviewedCriteria(text, requirements = []) {
   let rows;
   try { rows = JSON.parse(text); } catch { throw new Error('Reviewed criteria must be valid JSON.'); }

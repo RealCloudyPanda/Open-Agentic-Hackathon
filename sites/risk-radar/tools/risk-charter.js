@@ -1,11 +1,3 @@
-// Risk Radar coded tools: RiskProfiler and CharterBuilder.
-// Turn acceptance criteria into a risk matrix and exploratory test charters, deterministically.
-// Self-contained (no imports): runs in the caller's sandboxed worker with no network.
-//
-// RiskProfiler reads acceptance_criteria, platform; writes risk_profile.
-// CharterBuilder reads acceptance_criteria, platform, risk_profile.
-// Both fall back to parsing "AC-1: ..." lines from the request text.
-
 const AREAS = [
   { area: "Edit history integrity", tags: ["undo", "redo"], words: /\b(undo|redo|revert|history)\b/i, impact: 3, likelihood: 2,
     tactic: "rapid undo/redo sequences interleaved with typing, paste and formatting", info: "edits that are lost, duplicated or restored in the wrong place" },
@@ -33,7 +25,6 @@ function str(v) {
   return typeof v === "string" ? v.trim() : "";
 }
 
-/** Parse criteria from free text: "AC-1: title" lines, else one criterion per line. */
 export function parseCriteriaText(text) {
   const lines = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const tagged = lines
@@ -61,7 +52,6 @@ function priority(score) {
   return score >= 6 ? "P1" : score >= 3 ? "P2" : "P3";
 }
 
-/** Pure function: criteria -> risks sorted by score (desc), then first appearance. */
 export function profileRisks(sly = {}, request = "") {
   const { criteria, source } = criteriaFrom(sly, request);
   const byArea = new Map();
@@ -85,7 +75,6 @@ export function profileRisks(sly = {}, request = "") {
   return { risks, criteria_source: source };
 }
 
-/** Pure function: risks -> charters. One charter per risk scoring >= 3; at least one. */
 export function buildCharters(risks) {
   const chosen = risks.filter((r) => r.score >= 3);
   if (!chosen.length && risks.length) chosen.push(risks[0]);

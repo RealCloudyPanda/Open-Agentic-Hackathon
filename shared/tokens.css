@@ -1,4 +1,3 @@
-/* Spec Relay — "paper instruments" design tokens. No web fonts, no third-party requests. */
 :root {
   --paper: #F6F3EC; --paper-2: #EFEADF; --card: #FFFDF8; --ink: #1C1B19; --ink-2: #4A463F; --ink-3: #6B655A;
   --rule: #D9D3C7; --rule-2: #C7BFAF; --ok: #2F6B3A; --warn: #8A5A12; --bad: #A12A1E;

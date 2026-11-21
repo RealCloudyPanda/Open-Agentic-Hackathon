@@ -1,10 +1,7 @@
-// Turn runtime trace events into the artifacts and the boundary receipt the page shows.
-// Pure functions over trace.events; never reads values the runtime already redacted.
-
 export function artifactsFrom(events, { since = -1, localOrigin = "" } = {}) {
   const ev = events.filter((e) => (e.seq ?? 0) > since);
   const ends = (kind) => ev.filter((e) => e.kind === kind && e.phase === "end");
-  // Artifact contracts allow compatible peers to rename their coded tools.
+
   const results = ends("tool_call").filter((e) => e.status === "ok" && e.result && typeof e.result === "object");
   const drafter = results.find((e) => (!localOrigin || e.origin === localOrigin) && rows(e.result.criteria));
   const criteria = drafter ? { ...drafter.result, origin: drafter.origin } : null;
@@ -45,7 +42,6 @@ export function artifactsFrom(events, { since = -1, localOrigin = "" } = {}) {
 
 const rows = (value) => Array.isArray(value) && value.every((row) => row && typeof row === "object");
 
-/** Deep copy of events with any sly_data values replaced (belt and braces). */
 export function redactedTrace(events) {
   return JSON.parse(JSON.stringify(events, (k, v) => (k === "sly_data" && v && typeof v === "object" ? Object.fromEntries(Object.keys(v).map((x) => [x, "<redacted>"])) : v)));
 }

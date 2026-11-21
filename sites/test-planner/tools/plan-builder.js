@@ -1,11 +1,3 @@
-// Test Planner coded tool: PlanBuilder.
-// Turns acceptance criteria into a case-by-case test matrix, deterministically.
-// Self-contained (no imports): runs in the caller's sandboxed worker with no network.
-//
-// Reads sly_data: acceptance_criteria, feature_title, platform (only what the caller's
-// allow rule and this tool's allow rule both name). Falls back to parsing
-// "AC-1: ..." lines from the request text, so it also works standalone.
-
 const LEVEL_BY_TAG = [
   [["collaboration", "sync", "offline"], "integration"],
   [["accessibility", "happy-path", "persistence", "notifications"], "e2e"],
@@ -20,7 +12,6 @@ function str(v) {
   return typeof v === "string" ? v.trim() : "";
 }
 
-/** Parse criteria from free text: "AC-1: title" lines, else one criterion per line. */
 export function parseCriteriaText(text) {
   const lines = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const tagged = lines
@@ -83,7 +74,6 @@ function platformNotes(platform) {
   return notes;
 }
 
-/** Pure function: same input, same output. */
 export function buildPlan(sly = {}, request = "") {
   const received = Object.keys(sly || {}).sort();
   let criteria = asArray(sly.acceptance_criteria).filter((c) => c && (c.title || c.then));

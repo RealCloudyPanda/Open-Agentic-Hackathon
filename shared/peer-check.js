@@ -1,7 +1,3 @@
-// Slot-contract compatibility checker: "can this published network fill my link slot?"
-// Isomorphic: pass fetch and the vendored runtime's parseHocon/AgentNetwork/validateNetwork.
-// Reads public files only; never runs peer code.
-
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export function peerTarget(value) {
@@ -127,7 +123,6 @@ export async function checkPeer(url, options = {}) {
 
 const isRecord = (value) => value && typeof value === "object" && !Array.isArray(value);
 
-// Match the reference runtime's prefixing of paths relative to a nested site base.
 export function runtimeArtifactUrl(base, file) {
   if (typeof file !== "string") throw new Error("Artifact path must be a string.");
   return /^https?:\/\//i.test(file) ? file : base.href + file.replace(/^\//, "");

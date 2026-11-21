@@ -1,14 +1,3 @@
-// Spec Relay dev server: one process, three listeners, one per site origin.
-//
-// Usage: node server/serve.mjs [--quiet] [--root <dir>]
-//
-// Each site is served from its folder, plus two shared mounts:
-//   /runtime/*  -> vendor/nsdeploy-runtime/*   (the unmodified reference runtime)
-//   /shared/*   -> shared/*                    (our page code)
-// Public agent artifacts get `Access-Control-Allow-Origin: *`; nothing else does.
-// The coded-tool worker gets the CSP the runtime probes for. Nothing is cached.
-// Each request logs one line with header *names* and flags, never values.
-
 import http from "node:http";
 import path from "node:path";
 import { readFile, realpath, stat } from "node:fs/promises";
@@ -33,7 +22,6 @@ const TYPES = {
   ".md": "text/markdown; charset=utf-8",
 };
 
-/** True for files other agent sites must be able to read (spec §3.3, SPEC §9). */
 export function isPublicArtifact(urlPath) {
   const base = path.posix.basename(urlPath);
   if (base === "agent-manifest.json" || base === "links.json") return true;
@@ -48,7 +36,6 @@ export function loadConfig(root = ROOT) {
   return readFile(path.join(root, "sites.config.json"), "utf8").then(JSON.parse);
 }
 
-/** Map a URL path to a file on disk, or null if it escapes its mount. */
 async function resolveFile(root, site, urlPath) {
   let mountDir;
   let rel;
@@ -158,10 +145,6 @@ function makeHandler(root, site, onLog) {
   };
 }
 
-/**
- * Start all three listeners. Returns { servers, sites, close() }.
- * Options: root, quiet, onLog(entry), ports { [siteId]: port } (0 = any, for tests).
- */
 export async function startServers({ root = ROOT, quiet = false, onLog, ports = {} } = {}) {
   const config = await loadConfig(root);
   const servers = [];

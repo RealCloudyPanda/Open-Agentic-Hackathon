@@ -12,8 +12,7 @@ test('packaged three-origin relay and risk swap retain valid tool integrity', as
     const file = path.join(tmp, 'config.json');
     await writeFile(file, JSON.stringify(config));
     const out = await buildStatic(file, path.join(tmp, 'out'));
-    // Serve the exact packaged bytes through Playwright's HTTPS transport fixture.
-    // No public deployment, DNS or model provider is involved.
+
     await context.route('https://*.example.test/**', async (route) => {
       const url = new URL(route.request().url());
       const site = config.sites.find((s) => s.publicOrigin === url.origin);

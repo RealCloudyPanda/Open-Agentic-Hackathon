@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CLI: can this published agent network fill a link slot?
+
 // Usage: node tools/peer-check.mjs <network URL> [--origin <caller origin>] [--slot <manifest URL>#<reference>] [--json]
 import { parseArgs } from "node:util";
 import { checkPeer } from "../shared/peer-check.js";

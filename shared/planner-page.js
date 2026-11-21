@@ -1,5 +1,3 @@
-// Standalone page for a planner site (Test Planner, Risk Radar): paste criteria, run this
-// site's own published network in sample or live mode, render the result from the trace.
 import { bootSite } from "/shared/boot-site.js";
 import { artifactsFrom } from "/shared/trace-artifacts.js";
 

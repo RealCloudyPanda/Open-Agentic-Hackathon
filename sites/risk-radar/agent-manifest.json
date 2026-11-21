@@ -28,7 +28,7 @@
   },
   "coded_tools": {
     "bundle": "./tools/risk-charter.js",
-    "integrity": "sha256-blQybjaRnKSyY4A/oDegHARcpaMEY18c2IUcVURvMuk="
+    "integrity": "sha256-M0iOe8XthF02RymmO+xXgmUJ0DGtfda6KteVMf5gDf0="
   },
   "theme": {
     "primary": "#8A5A12"
