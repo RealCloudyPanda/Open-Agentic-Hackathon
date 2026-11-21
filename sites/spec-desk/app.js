@@ -1,5 +1,6 @@
 // Spec Desk page: intake, handoff ledger, consent card, relay timeline, results, swap.
 // Drives the unmodified reference runtime through its public Engine API.
+import { reviewedCriteria } from "/shared/review.js";
 import { relayMarkdown, downloadReview } from "/shared/export.js";
 import { bootSite } from "/shared/boot-site.js";
 import { artifactsFrom, redactedTrace } from "/shared/trace-artifacts.js";
@@ -76,6 +77,7 @@ function renderLedger() {
 $("#ledger").addEventListener("change", (e) => {
   const k = e.target.dataset.k; if (!k) return;
   e.target.checked ? unticked.delete(k) : unticked.add(k);
+  invalidate();
   renderLedger();
   $(`#ledger [data-k="${k}"]`)?.focus();
 });
@@ -212,7 +214,15 @@ async function runRelay(approved = false) {
   approved = approved === true;
   if (approved && (!reviewSnapshot || JSON.stringify(intake()) !== reviewSnapshot)) return;
   if (running || !booted || peerBoundary.isActive()) return;
+  const reviewedText = approved ? $("#review-criteria").value : null;
+  let approvedRows;
+  if (approved) {
+    try { approvedRows = reviewedCriteria(reviewedText, draftArtifact?.requirements); }
+    catch (error) { $("#review-status").textContent = error.message; return; }
+  }
+  const sharedSnapshot = [...unticked].sort().join(',');
   running = true;
+  $("#approve-plan").disabled = true;
   $("#run").disabled = true;
   $("#swap-btn").disabled = true;
   $("#reset-btn").disabled = true;
@@ -231,20 +241,10 @@ async function runRelay(approved = false) {
   const values = intake();
   let slyData = buildSlyData(values, unticked);
   if (approved) {
-    try {
-      const criteria = JSON.parse($("#review-criteria").value);
-      if (!Array.isArray(criteria) || !criteria.length || criteria.some((c) => !c.id || !c.title)) throw new Error("Provide an array of criteria with IDs and titles.");
-      slyData = { acceptance_criteria: criteria };
-      for (const k of ["feature_title", "platform"]) if (!unticked.has(k)) slyData[k] = values[k];
-    } catch (error) {
-      $("#review-status").textContent = error.message;
-      running = false;
-      $("#run").disabled = false;
-      $("#swap-btn").disabled = false;
-      $("#reset-btn").disabled = false;
-      return;
-    }
+    slyData = { acceptance_criteria: approvedRows };
+    for (const k of ["feature_title", "platform"]) if (!unticked.has(k)) slyData[k] = values[k];
   }
+
   const crossing = allowed.filter((k) => k === "acceptance_criteria" || (k in slyData));
   const staying = Object.keys(SAMPLE).filter((k) => !crossing.includes(k));
   const withheld = Object.fromEntries(staying.filter((k) => k !== "feature_request").map((k) => [k, values[k]]));
@@ -265,10 +265,12 @@ async function runRelay(approved = false) {
     li.querySelector("span").firstChild.textContent = d === "allow" ? `You allowed contact with ${info.peerOrigin}` : `Declined. Nothing was sent to ${info.peerOrigin}.`;
     return d === "allow" ? "allow" : "decline";
   };
+  let failure = null;
   trace.addEventListener("event", onTrace);
   try {
     await engine.runTurn(approved ? "Write a test plan for the approved acceptance criteria." : values.feature_request || "Draft acceptance criteria.", { slyData, peerConsent });
   } catch (err) {
+    failure = err.message;
     step("The run stopped", "stop", esc(err.message));
   } finally {
     trace.removeEventListener("event", onTrace);
@@ -276,7 +278,9 @@ async function runRelay(approved = false) {
   const events = trace.events.filter((e) => e.seq > since);
   const { criteria, plan, receipt, peerAnswer } = artifactsFrom(trace.events, { since, localOrigin: location.host });
   const out = [];
-  stale = JSON.stringify(intake()) !== JSON.stringify(values);
+  stale = JSON.stringify(intake()) !== JSON.stringify(values)
+    || sharedSnapshot !== [...unticked].sort().join(',')
+    || (approved && $("#review-criteria").value !== reviewedText);
   exportButton.hidden = false;
   if (criteria) {
     draftArtifact = criteria;
@@ -291,8 +295,10 @@ async function runRelay(approved = false) {
   out.push(receiptCard(receipt, consentLog, events));
   step("Receipt written");
   $("#results").innerHTML = out.join("");
-  window.__relay.last = { criteria: criteria || draftArtifact, plan, receipt, consentLog, approvedCriteria: approved ? slyData.acceptance_criteria : null };
+  window.__relay.last = { criteria: criteria || draftArtifact, plan, receipt, consentLog, approvedCriteria: approved ? slyData.acceptance_criteria : null, failure, stale };
   running = false;
+  $("#approve-plan").disabled = false;
+  if (stale) $("#review-status").textContent = "Inputs changed during this run. Review and plan again.";
   $("#run").disabled = false;
   $("#swap-btn").disabled = false;
   $("#reset-btn").disabled = false;
@@ -359,6 +365,7 @@ $("#use-btn").addEventListener("click", () => {
   }
   binding = applyBinding(booted.engine, localStorage);
   renderSlot();
+  invalidate();
   swap.close();
   $("#run").focus();
 });
@@ -367,6 +374,7 @@ $("#reset-btn").addEventListener("click", () => {
   resetBinding(localStorage, booted.engine.top.base);
   binding = applyBinding(booted.engine, localStorage);
   renderSlot();
+  invalidate();
 });
 
 // ---- boot --------------------------------------------------------------------

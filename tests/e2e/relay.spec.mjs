@@ -139,3 +139,37 @@ test('standalone drills exercise actual runtime policy functions', async ({ page
   expect(rows).toHaveLength(3);
   expect(rows.every((r) => r.passed)).toBe(true);
 });
+
+
+test('malformed reviewed criteria preserve the draft and never contact a peer', async ({ page }) => {
+  await open(page);
+  await page.click('#run');
+  await page.waitForSelector('#review-criteria');
+  await page.locator('#review-criteria').fill(JSON.stringify([{ id: 'AC-X', title: { bad: 'shape' } }]));
+  await page.click('#approve-plan');
+  await expect(page.locator('#review-status')).toContainText('nonempty title');
+  await expect(page.locator('[aria-label="Acceptance criteria"]')).toBeVisible();
+  await expect(page.locator('#consent')).not.toBeVisible();
+  expect(peer('test-planner')).toHaveLength(0);
+  await expect(page.locator('#approve-plan')).toBeEnabled();
+});
+
+test('edits while a handoff is pending keep its completed plan stale', async ({ page }) => {
+  await open(page);
+  await page.click('#run');
+  await page.waitForSelector('#review-criteria');
+  await page.click('#approve-plan');
+  await page.waitForSelector('#consent[open]');
+  await expect(page.locator('#approve-plan')).toBeDisabled();
+  // Simulate an input event arriving while the async consent request is pending.
+  await page.evaluate(() => {
+    const input = document.querySelector('#review-criteria');
+    const rows = JSON.parse(input.value); rows[0].title = 'Changed during handoff';
+    input.value = JSON.stringify(rows); input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.click('#consent [data-d=allow]');
+  await page.waitForSelector('[aria-label="Test plan"]');
+  expect(await page.evaluate(() => window.__relay.last.stale)).toBe(true);
+  await expect(page.locator('#review-status')).toContainText('Inputs changed during this run');
+  expect(await page.evaluate(() => window.__relay.last.approvedCriteria[0].title)).not.toBe('Changed during handoff');
+});

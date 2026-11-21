@@ -14,7 +14,7 @@ export function artifactsFrom(events, { since = -1, localOrigin = "" } = {}) {
   if (pb) plan = { ...pb.result, kind: "test_plan", origin: pb.origin };
   else if (rp) {
     const cb = results.find((e) => e.origin === rp.origin && rows(e.result.charters));
-    plan = { kind: "risk_plan", origin: rp.origin, risks: rp.result.risks, received_fields: rp.result.received_fields, charters: cb?.result.charters ?? [] };
+    plan = { kind: "risk_plan", origin: rp.origin, risks: rp.result.risks, criteria_source: rp.result.criteria_source, received_fields: rp.result.received_fields, charters: cb?.result.charters ?? [] };
   }
 
   const fetches = ends("remote_fetch");
