@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { buildSite } from './build-networks.mjs';
 import { fileURLToPath } from 'node:url';
 import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -6,6 +7,8 @@ export async function buildStatic(configFile, output = path.join(ROOT, 'dist')) 
   const config = JSON.parse(await readFile(configFile, 'utf8'));
   const sites = config.sites;
   if (!Array.isArray(sites) || sites.length !== 3) throw new Error('Configure all three site origins.');
+  const expectedIds = ['spec-desk', 'test-planner', 'risk-radar'];
+  if (new Set(sites.map((s) => s.id)).size !== 3 || sites.some((s) => !expectedIds.includes(s.id))) throw new Error('Config must uniquely name spec-desk, test-planner and risk-radar.');
   const origins = sites.map((s) => {
     const url = new URL(s.publicOrigin);
     if (url.protocol !== 'https:' || url.origin !== s.publicOrigin || url.username || url.password) throw new Error('publicOrigin must be a bare HTTPS origin.');
@@ -16,7 +19,7 @@ export async function buildStatic(configFile, output = path.join(ROOT, 'dist')) 
   const replacements = source.sites.map((s) => [s.origin, origins[sites.findIndex((v) => v.id === s.id)]]);
   if (replacements.some(([, value]) => !value)) throw new Error('Config must name spec-desk, test-planner and risk-radar.');
   const out = path.resolve(output);
-  if (out === ROOT || ROOT.startsWith(out + path.sep)) throw new Error('Output cannot contain source root.');
+  if (out === ROOT || ROOT.startsWith(out + path.sep) || (out.startsWith(ROOT + path.sep) && out !== path.join(ROOT, 'dist'))) throw new Error('Output must be dist or outside the source tree.');
   for (const site of source.sites) {
     const dest = path.join(out, site.id);
     await mkdir(dest, { recursive: true });
@@ -36,6 +39,12 @@ export async function buildStatic(configFile, output = path.join(ROOT, 'dist')) 
       }
     }
     await rewrite(dest);
+    // Rebuild after replacing origins: tools contain origin stamps covered by SRI.
+    for (const folder of [dest, path.join(dest, 'handoff')]) {
+      const { outputs, errors } = await buildSite(folder);
+      if (errors.length) throw new Error(errors.join('\n'));
+      for (const [file, text] of outputs) await writeFile(file, text);
+    }
     await writeFile(path.join(dest, '_headers'), '/*\n  Access-Control-Allow-Origin: *\n  X-Content-Type-Options: nosniff\n/runtime/sandbox-worker.js\n  Content-Security-Policy: default-src \'none\'; script-src blob:; connect-src \'none\'; worker-src \'none\'\n');
   }
   await writeFile(path.join(out, 'HOSTING.md'), 'Upload each named folder to its matching HTTPS origin. Apply _headers or equivalent CORS and worker CSP headers. No deployment was performed. Real hosting and model runs require owner verification.\n');
