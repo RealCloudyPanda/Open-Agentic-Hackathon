@@ -1,15 +1,14 @@
 import { createReviewedHandoff } from "./relay/reviewed-handoff.js";
 import { relayMarkdown, downloadReview } from "/shared/export.js";
 import { bootSite } from "/shared/boot-site.js";
-import { redactedTrace } from "/shared/trace-artifacts.js";
 import { checkPeer, peerTarget } from "/shared/peer-check.js";
 import { allowRule, ledgerRows, findLeaks } from "./relay/ledger.js";
 import { applyBinding, saveBinding, resetBinding, SLOT } from "./relay/binding.js";
 import { installPeerBoundary } from "./relay/peer-boundary.js";
+import { esc, hostOf, stamp } from "./ui/html.js";
+import { criteriaCard, planCard, receiptCard } from "./ui/cards.js";
 
 const $ = (s, el = document) => el.querySelector(s);
-const esc = (s) => (s != null && typeof s !== "object" ? String(s) : "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const hostOf = (u) => { try { return new URL(u).host; } catch { return u; } };
 
 const SAMPLE = {
   feature_request: "Add undo and redo to our collaborative document editor. Undo must only revert my own edits.",
@@ -18,8 +17,7 @@ const SAMPLE = {
   customer_name: "Acme Docs (pilot)",
   internal_notes: "Pilot threatened to churn over lost edits. Do not share outside the team.",
 };
-const STAMP = { "127.0.0.1:5173": "var(--desk)", "localhost:5174": "var(--planner)", "[::1]:5175": "var(--radar)" };
-const stamp = (origin, extra = "") => `<span class="stamp" style="--stamp:${STAMP[origin] || "var(--ink-2)"}">${esc(origin)}${extra}</span>`;
+
 
 const form = $("#intake");
 for (const [k, v] of Object.entries(SAMPLE)) form.elements[k].value = v;
@@ -149,57 +147,6 @@ function onTrace(e) {
   if ((ev.kind === "composition_limit" || ev.kind === "composition_skip")) step("Skipped by the runtime", "stop", esc(ev.reason));
 }
 
-function criteriaCard(c) {
-  return `<article class="card art enter" aria-label="Acceptance criteria">
-    <header><h3>Acceptance criteria</h3>${stamp(c.origin, " · Spec Desk")}</header>
-    <p>Suggested checks require review before handoff.</p>
-    ${(c.requirements || []).map((r) => `<p><b>${esc(r.id)}</b> · Explicit requirement: ${esc(r.text)} <small>feature_request [${r.source.start}, ${r.source.end})</small></p>`).join("")}
-    <div class="tablewrap"><table><thead><tr><th>ID</th><th>Criterion</th><th>Priority</th></tr></thead><tbody>
-    ${c.criteria.map((x) => `<tr><td class="id">${esc(x.id)}</td><td>${esc(x.title)} <small>${esc(x.status || "needs review")} · ${(x.requirement_ids || []).map(esc).join(", ") || "No explicit source requirement"}</small><div class="gwt">Given ${esc(x.given)}; when ${esc(x.when)}; then ${esc(x.then)}.</div></td><td class="id">${esc(x.priority)}</td></tr>`).join("")}
-    </tbody></table></div></article>`;
-}
-function planCard(p) {
-  const recv = `<p class="received">Fields it received: <code>${Array.isArray(p.received_fields) ? p.received_fields.map(esc).join(", ") || "none" : "unreported"}</code></p>`;
-  if (p.kind === "risk_plan") {
-    return `<article class="card art enter" aria-label="Risk plan">
-      <header><h3>Risk matrix and charters</h3>${stamp(p.origin, p.origin === "[::1]:5175" ? " · Risk Radar" : "")}</header>
-      <div class="tablewrap"><table><thead><tr><th>Risk</th><th>Area</th><th>Impact × likelihood</th><th>Criteria</th></tr></thead><tbody>
-      ${p.risks.map((r) => `<tr><td class="id">${esc(r.id)} ${esc(r.priority)}</td><td>${esc(r.area)}</td><td class="id">${esc(r.impact)} × ${esc(r.likelihood)} = ${esc(r.score)}</td><td class="id">${r.criteria.map(esc).join(" ")}</td></tr>`).join("")}
-      </tbody></table></div>
-      <div class="tablewrap"><table><thead><tr><th>Charter</th><th>Mission</th><th>Timebox</th></tr></thead><tbody>
-      ${p.charters.map((c) => `<tr><td class="id">${esc(c.id)}</td><td>${esc(c.mission)}</td><td class="id">${esc(c.timebox_min)} min</td></tr>`).join("")}
-      </tbody></table></div>${recv}</article>`;
-  }
-  const cases = p.plan.cases;
-  return `<article class="card art enter" aria-label="Test plan">
-    <header><h3>Test plan · ${cases.length} cases</h3>${stamp(p.origin, p.origin === "localhost:5174" ? " · Test Planner" : "")}</header>
-    <div class="tablewrap"><table><thead><tr><th>Case</th><th>Steps and expected result</th><th>Covers</th><th>Type</th><th>Level</th><th>Priority</th></tr></thead><tbody>
-    ${cases.map((c) => `<tr><td class="id">${esc(c.id)}</td><td>${esc(c.title)}<ol>${(c.steps || []).map((s) => `<li>${esc(s)}</li>`).join("")}</ol><b>Expected:</b> ${esc(c.expected)}</td><td class="id">${esc(c.criterion)}</td><td>${esc(c.type)}</td><td>${esc(c.level)}</td><td class="id">${esc(c.priority)}</td></tr>`).join("")}
-    </tbody></table></div>
-    <p class="received">${p.plan.platform_notes.map(esc).join(" ")}</p>${recv}</article>`;
-}
-function receiptCard(r, consentLog, events) {
-  const decision = consentLog.map((c) => `${c.decision} ${c.origin} at ${c.time}`).join("; ") || "no contact requested";
-  let traceText;
-  try { traceText = JSON.stringify(redactedTrace(events), null, 1); }
-  catch { traceText = "Raw trace unavailable because a tool returned data that cannot be represented as JSON."; }
-  return `<article class="card art receipt enter" aria-label="Boundary receipt">
-    <header><h3>Boundary receipt</h3>${stamp(location.host, " · recorded here")}</header>
-    <dl>
-      <dt>Consent</dt><dd>${esc(decision)}</dd>
-      <dt>Origins contacted</dt><dd>${esc(r.contactedOrigins.join(", ") || "none")}</dd>
-      <dt>Files fetched</dt><dd>${r.fetchedUrls.map(esc).join("<br>") || "none"}</dd>
-      <dt>Validation</dt><dd>${r.validation}</dd>
-      <dt>sly_data keys sent</dt><dd>${esc(r.slyKeysSent.join(", ") || "none")}</dd>
-      <dt>Excluded from sly_data</dt><dd>${esc(Object.keys(SAMPLE).filter((k) => !r.slyKeysSent.includes(k)).join(", "))}</dd>
-      <dt>Model calls</dt><dd>${esc(booted.routerHost)}${booted.mode.live ? " (yours)" : ""} · sent to peers: none</dd>
-      <dt>Authorization to peer</dt><dd>${r.authorizationSentToPeer}</dd>
-      ${r.errors.length ? `<dt>Errors</dt><dd>${esc(r.errors.join(" | "))}</dd>` : ""}
-    </dl>
-    <details><summary>Raw trace (redacted)</summary><pre>${esc(traceText)}</pre></details>
-  </article>`;
-}
-
 async function runRelay(approved = false) {
   approved = approved === true;
   if (!reviewedHandoff || reviewedHandoff.state.running || peerBoundary.isActive()) return;
@@ -224,7 +171,7 @@ async function runRelay(approved = false) {
   if (plan) out.push(planCard(plan));
   else if (peerAnswer) out.push(`<article class="card art enter"><header><h3>Planner reply excerpt</h3>${stamp(peerAnswer.origin)}</header><p>${esc(peerAnswer.text)}</p></article>`);
   if (failure) step("The run stopped", "stop", esc(failure));
-  out.push(receiptCard(receipt, consentLog, events));
+  out.push(receiptCard(receipt, consentLog, events, { fields: Object.keys(SAMPLE), routerHost: booted.routerHost, live: booted.mode.live }));
   step("Receipt written");
   $("#results").innerHTML = out.join("");
   window.__relay.last = reviewedHandoff.exportData();
