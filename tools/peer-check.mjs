@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-// Usage: node tools/peer-check.mjs <network URL> [--origin <caller origin>] [--slot <manifest URL>#<reference>] [--json]
 import { parseArgs } from "node:util";
 import { checkPeer } from "../shared/peer-check.js";
 import * as runtime from "../vendor/nsdeploy-runtime/kernel.js";

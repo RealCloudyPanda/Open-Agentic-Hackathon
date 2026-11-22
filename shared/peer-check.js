@@ -14,7 +14,6 @@ export function peerTarget(value) {
   return { url, name, base: new URL("./", url) };
 }
 
-/** @param {RequestInit} [options] */
 export async function fetchPeerArtifact(fetch, origin, href, options = {}) {
   const { cache, signal } = options;
   const url = new URL(href);
@@ -24,7 +23,6 @@ export async function fetchPeerArtifact(fetch, origin, href, options = {}) {
   return fetch(url.href, { cache, signal, credentials: "omit", redirect: "error" });
 }
 
-/** @param {{fetch?: typeof fetch, runtime?: any, contract?: {sends_sly_data?: string[], requires_sly_data?: string[]}}} [options] */
 export async function checkPeer(url, options = {}) {
   const { fetch: f = globalThis.fetch, runtime, contract = {} } = options;
   const results = [];

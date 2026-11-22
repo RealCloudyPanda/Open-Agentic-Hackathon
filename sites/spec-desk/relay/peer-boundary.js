@@ -18,7 +18,6 @@ export function installPeerBoundary(engine, slot, transport = globalThis) {
     return resolveRemote(ref, ...args);
   };
 
-  /** @param {{peerConsent?: (info: any) => Promise<string>, [key: string]: any}} [turnOptions] */
   engine.runTurn = async (text, turnOptions = {}) => {
     const { peerConsent, ...options } = turnOptions;
     if (active) throw new Error("Wait for the current Spec Desk turn to finish.");
