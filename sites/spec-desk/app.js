@@ -1,9 +1,9 @@
-import { reviewedCriteria } from "/shared/review.js";
+import { createReviewedHandoff } from "./relay/reviewed-handoff.js";
 import { relayMarkdown, downloadReview } from "/shared/export.js";
 import { bootSite } from "/shared/boot-site.js";
-import { artifactsFrom, redactedTrace } from "/shared/trace-artifacts.js";
+import { redactedTrace } from "/shared/trace-artifacts.js";
 import { checkPeer, peerTarget } from "/shared/peer-check.js";
-import { allowRule, ledgerRows, buildSlyData, findLeaks } from "./relay/ledger.js";
+import { allowRule, ledgerRows, findLeaks } from "./relay/ledger.js";
 import { applyBinding, saveBinding, resetBinding, SLOT } from "./relay/binding.js";
 import { installPeerBoundary } from "./relay/peer-boundary.js";
 
@@ -29,28 +29,24 @@ let allowed = [];
 let contract = { sends_sly_data: [], requires_sly_data: ["acceptance_criteria"] };
 let booted = null;
 let binding = null;
-let running = false;
 let peerBoundary;
-let handoff = null;
-let reviewSnapshot = null;
-let draftArtifact = null;
-let stale = false;
+let reviewedHandoff = null;
 const exportButton = document.createElement("button");
 exportButton.type = "button"; exportButton.className = "btn"; exportButton.textContent = "Download review Markdown";
 exportButton.hidden = true;
 $("#results").before(exportButton);
-exportButton.addEventListener("click", () => downloadReview(relayMarkdown({ ...window.__relay.last, criteria: draftArtifact, stale })));
+exportButton.addEventListener("click", () => downloadReview(relayMarkdown(reviewedHandoff.exportData())));
 const review = document.createElement("section");
 review.className = "card";
 review.hidden = true;
 review.innerHTML = '<h2>Review criteria</h2><p>Edit the suggested checks, then approve this exact snapshot for planning.</p><textarea id="review-criteria" rows="12" aria-label="Reviewed criteria JSON"></textarea><p id="review-status" role="status"></p><button id="approve-plan" class="btn primary" type="button">Approve and plan</button>';
 $("#results").before(review);
 const invalidate = () => {
-  stale = true;
+  reviewedHandoff?.invalidate();
   if (window.__relay?.last?.plan) $("#review-status").textContent = "Plan is stale after edits. Approve and plan again.";
 };
 review.addEventListener("input", invalidate);
-form.addEventListener("input", () => { reviewSnapshot = null; review.hidden = true; invalidate(); });
+form.addEventListener("input", () => { review.hidden = true; invalidate(); });
 $("#approve-plan").addEventListener("click", () => runRelay(true));
 
 const intake = () => Object.fromEntries(Object.keys(SAMPLE).map((k) => [k, form.elements[k].value.trim()]));
@@ -206,97 +202,35 @@ function receiptCard(r, consentLog, events) {
 
 async function runRelay(approved = false) {
   approved = approved === true;
-  if (approved && (!reviewSnapshot || JSON.stringify(intake()) !== reviewSnapshot)) return;
-  if (running || !booted || peerBoundary.isActive()) return;
-  const reviewedText = approved ? $("#review-criteria").value : null;
-  let approvedRows;
-  if (approved) {
-    try { approvedRows = reviewedCriteria(reviewedText, draftArtifact?.requirements); }
-    catch (error) { $("#review-status").textContent = error.message; return; }
-  }
-  const sharedSnapshot = [...unticked].sort().join(',');
-  running = true;
-  $("#approve-plan").disabled = true;
-  $("#run").disabled = true;
-  $("#swap-btn").disabled = true;
-  $("#reset-btn").disabled = true;
-  const { engine, trace } = approved ? handoff : booted;
-  binding = applyBinding(booted.engine, localStorage);
-  if (approved) {
-    engine.top.network.setLink(SLOT, binding.target);
-    engine.runtimeAllowedPeers.add(new URL(binding.target).origin);
-  }
-  renderSlot();
-  engine.resetHistory();
-  tl.innerHTML = "";
-  pendingSteps.clear();
-  $("#results").innerHTML = "";
-  const since = trace.events.at(-1)?.seq ?? -1;
-  const values = intake();
-  let slyData = buildSlyData(values, unticked);
-  if (approved) {
-    slyData = { acceptance_criteria: approvedRows };
-    for (const k of ["feature_title", "platform"]) if (!unticked.has(k)) slyData[k] = values[k];
-  }
-
-  const crossing = allowed.filter((k) => k === "acceptance_criteria" || (k in slyData));
-  const staying = Object.keys(SAMPLE).filter((k) => !crossing.includes(k));
-  const withheld = Object.fromEntries(staying.filter((k) => k !== "feature_request").map((k) => [k, values[k]]));
-  const consentLog = [];
-  const peerConsent = async (info) => {
-    const { criteria } = artifactsFrom(trace.events, { since, localOrigin: location.host });
-    const li = step(`Waiting for your consent to contact ${esc(info.peerOrigin)}`, "wait");
-    const d = await consentCard({
-      origin: info.peerOrigin,
-      purpose: `Load the published network <code>${esc(hostOf(binding.target) === info.peerOrigin ? binding.target.split("/").pop() : info.peerLabel)}</code> from <code>${esc(new URL(binding.target).origin)}</code> and run it in this browser to turn your acceptance criteria into a test plan.`,
-      requestText: info.requestText,
-      payload: approved ? slyData : null,
-      crossing: criteria ? crossing : crossing.filter((k) => k !== "acceptance_criteria"),
-      staying: staying.filter((k) => k !== "feature_request"), withheld, routerHost: booted.routerHost,
-    });
-    consentLog.push({ origin: info.peerOrigin, decision: d === "allow" ? "allowed" : "declined", time: new Date().toLocaleTimeString() });
-    li.className = d === "allow" ? "done" : "stop";
-    li.querySelector("span").firstChild.textContent = d === "allow" ? `You allowed contact with ${info.peerOrigin}` : `Declined. Nothing was sent to ${info.peerOrigin}.`;
-    return d === "allow" ? "allow" : "decline";
-  };
-  let failure = null;
-  trace.addEventListener("event", onTrace);
+  if (!reviewedHandoff || reviewedHandoff.state.running || peerBoundary.isActive()) return;
+  let result;
   try {
-    await engine.runTurn(approved ? "Write a test plan for the approved acceptance criteria." : values.feature_request || "Draft acceptance criteria.", { slyData, peerConsent });
-  } catch (err) {
-    failure = err.message;
-    step("The run stopped", "stop", esc(err.message));
+    result = await reviewedHandoff.run(approved);
+  } catch (error) {
+    $("#review-status").textContent = error.message;
   } finally {
-    trace.removeEventListener("event", onTrace);
+    for (const selector of ["#approve-plan", "#run", "#swap-btn", "#reset-btn"]) $(selector).disabled = false;
   }
-  const events = trace.events.filter((e) => e.seq > since);
-  const { criteria, plan, receipt, peerAnswer } = artifactsFrom(trace.events, { since, localOrigin: location.host });
+  if (!result) return;
+  const { criteria, plan, receipt, peerAnswer, consentLog, events, failure, stale } = result;
   const out = [];
-  stale = JSON.stringify(intake()) !== JSON.stringify(values)
-    || sharedSnapshot !== [...unticked].sort().join(',')
-    || (approved && $("#review-criteria").value !== reviewedText);
   exportButton.hidden = false;
-  if (criteria) {
-    draftArtifact = criteria;
-    out.push(criteriaCard(criteria));
-    reviewSnapshot = JSON.stringify(values);
+  if (criteria) out.push(criteriaCard(criteria));
+  if (!approved && criteria) {
     $("#review-criteria").value = JSON.stringify(criteria.criteria, null, 2);
     $("#review-status").textContent = "Draft ready for review. No planner contacted.";
-    review.hidden = false;
+    review.hidden = !reviewedHandoff.state.reviewReady;
   }
   if (plan) out.push(planCard(plan));
   else if (peerAnswer) out.push(`<article class="card art enter"><header><h3>Planner reply excerpt</h3>${stamp(peerAnswer.origin)}</header><p>${esc(peerAnswer.text)}</p></article>`);
+  if (failure) step("The run stopped", "stop", esc(failure));
   out.push(receiptCard(receipt, consentLog, events));
   step("Receipt written");
   $("#results").innerHTML = out.join("");
-  window.__relay.last = { criteria: criteria || draftArtifact, plan, receipt, consentLog, approvedCriteria: approved ? slyData.acceptance_criteria : null, failure, stale };
-  running = false;
-  $("#approve-plan").disabled = false;
+  window.__relay.last = reviewedHandoff.exportData();
   if (stale) $("#review-status").textContent = "Inputs changed during this run. Review and plan again.";
-  $("#run").disabled = false;
-  $("#swap-btn").disabled = false;
-  $("#reset-btn").disabled = false;
 }
+
 $("#run").addEventListener("click", () => runRelay());
 
 const swap = $("#swap");
@@ -385,8 +319,32 @@ if (booted) {
     routerOverride: booted.engine.routerOverride });
   handoffEngine.modelOverride = booted.engine.modelOverride;
   await handoffEngine.loadTop();
-  handoff = { engine: handoffEngine, trace: handoffTrace };
   installPeerBoundary(handoffEngine, SLOT);
+  reviewedHandoff = createReviewedHandoff({
+    draft: booted, handoff: { engine: handoffEngine, trace: handoffTrace }, allowed, localOrigin: location.host,
+    read: () => ({ values: intake(), unticked, reviewedText: $("#review-criteria").value }),
+    bind: () => (binding = applyBinding(booted.engine, localStorage)),
+    onTrace,
+    onStart: () => {
+      for (const selector of ["#approve-plan", "#run", "#swap-btn", "#reset-btn"]) $(selector).disabled = true;
+      tl.innerHTML = "";
+      pendingSteps.clear();
+      $("#results").innerHTML = "";
+      renderSlot();
+    },
+    consent: async (info) => {
+      const li = step(`Waiting for your consent to contact ${esc(info.peerOrigin)}`, "wait");
+      const decision = await consentCard({
+        origin: info.peerOrigin,
+        purpose: `Load the published network <code>${esc(hostOf(info.target) === info.peerOrigin ? info.target.split("/").pop() : info.peerLabel)}</code> from <code>${esc(new URL(info.target).origin)}</code> and run it in this browser to turn your acceptance criteria into a test plan.`,
+        requestText: info.requestText, payload: info.payload, crossing: info.crossing,
+        staying: info.staying, withheld: info.withheld, routerHost: booted.routerHost,
+      });
+      li.className = decision === "allow" ? "done" : "stop";
+      li.querySelector("span").firstChild.textContent = decision === "allow" ? `You allowed contact with ${info.peerOrigin}` : `Declined. Nothing was sent to ${info.peerOrigin}.`;
+      return decision;
+    },
+  });
   window.__relay.booted = booted;
   $("#run").disabled = false;
   $("#swap-btn").disabled = false;
