@@ -64,7 +64,8 @@ standalone use.
 │   ├── spec-desk/
 │   │   ├── index.html  app.css  app.js
 │   │   ├── relay/ledger.js      # field states, allow ∩ visitor choice, leak guard
-│   │   ├── relay/consent-card.js
+│   │   ├── relay/reviewed-handoff.js # draft review, exact approval, consent, lifecycle, stale export
+│   │   ├── relay/peer-boundary.js    # fresh origin consent, allow rule, credential-free artifacts
 │   │   ├── relay/binding.js     # visitor binding: read/apply/reset
 │   │   ├── site-actions.js      # registers get_intake (read, local-only)
 │   │   ├── bridge/              # action-bridge.html + agent-manifest.json (from skill template, shares nothing)
@@ -95,6 +96,29 @@ standalone use.
 
 `/runtime/*` on each origin maps to `vendor/nsdeploy-runtime/*`; `/shared/*` maps to
 `shared/*`. The static build copies both into each `dist/<site>/`.
+
+The Reviewed handoff module owns the draft/review/approval sequence behind
+`createReviewedHandoff(...).run(approved?)`. Its caller supplies the two existing runtime adapters,
+current intake/review reader, visitor-binding resolver, consent-card renderer and trace renderer.
+The caller renders the returned criteria, plan and receipt. It no longer validates review JSON,
+constructs the approved private context, waits for consent, installs/removes run trace listeners,
+or compares run snapshots. `invalidate()` marks exports stale and drops review readiness after
+intake changes; `exportData()` returns the current stale status with the actual approved criteria.
+
+The module freezes intake, sharing choices and reviewed text before execution. An approved run
+accepts only a current drafted intake and validated criteria, forwards the exact approved rows,
+and applies the current visitor binding to the separate handoff network. Consent precedes peer
+contact, and the leak guard can refuse a leaking payload even if a consent adapter returns allow.
+A changed intake during drafting cannot restore review readiness when the late result arrives.
+Changes to intake, sharing or review while a run waits make its completed outcome stale. Runtime
+errors produce a partial outcome/receipt, and trace listeners are removed on completion or failure.
+
+The existing peer-origin enforcement, published allow rules, staged networks, visitor bindings
+and credential-free artifact transport remain in their dedicated implementations. The reference
+runtime is unchanged. Module-interface tests replace review-helper-only tests and cover ordering,
+validation, exact payloads, consent wait/decline, late edits, failure cleanup and stale exports.
+Actual-runtime browser regressions cover the three local origins and packed static origins;
+these checks do not establish public hosting or a real BYOK model run.
 
 ## 5. Published artifacts
 
