@@ -2,11 +2,13 @@ import { createReviewedHandoff } from "./relay/reviewed-handoff.js";
 import { relayMarkdown, downloadReview } from "/shared/export.js";
 import { bootSite } from "/shared/boot-site.js";
 import { checkPeer, peerTarget } from "/shared/peer-check.js";
-import { allowRule, ledgerRows, findLeaks } from "./relay/ledger.js";
+import { allowRule, ledgerRows } from "./relay/ledger.js";
 import { applyBinding, saveBinding, resetBinding, SLOT } from "./relay/binding.js";
 import { installPeerBoundary } from "./relay/peer-boundary.js";
 import { esc, hostOf, stamp } from "./ui/html.js";
 import { criteriaCard, planCard, receiptCard } from "./ui/cards.js";
+import { createConsentDialog } from "./ui/consent.js";
+import { createTimeline } from "./ui/timeline.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 
@@ -88,64 +90,9 @@ function renderSlot() {
 }
 
 const dlg = $("#consent");
-function consentCard({ origin, purpose, requestText = null, crossing = [], staying = [], withheld = {}, routerHost, checker = false, payload = null }) {
-  const leaks = requestText ? findLeaks(requestText + (payload ? JSON.stringify(payload) : ""), withheld) : [];
-  dlg.innerHTML = `
-    <h2 id="consent-title" tabindex="-1">Contact <b>${esc(origin)}</b>?</h2>
-    <p>${purpose}</p>
-    ${requestText !== null ? `<p class="label">Request text</p><div class="req">${esc(requestText)}</div>
-      <p class="guard ${leaks.length ? "bad" : "ok"}">${leaks.length ? `Blocked: the request contains your ${leaks.map((k) => `<code>${k}</code>`).join(", ")} value.` : "Leak guard: no withheld values found in the request."}</p>` : ""}
-    ${payload ? `<details open><summary>Exact approved structured context</summary><pre>${esc(JSON.stringify(payload, null, 2))}</pre></details>` : ""}
-    ${checker ? "" : `<div class="cols"><div><p class="label">Fields that will cross</p><ul>${crossing.map((k) => `<li>${k}</li>`).join("") || "<li>none</li>"}</ul></div>
-      <div><p class="label">Fields that stay here</p><ul>${staying.map((k) => `<li>${k}</li>`).join("")}</ul></div></div>`}
-    <p class="key">${routerHost?.startsWith("browser://") ? "No AI key in use (sample mode)." : `Your AI key stays with your router (<code>${esc(routerHost)}</code>). The peer site never receives it.`} Requests carry no cookies or credentials.</p>
-    <div class="row end"><button class="btn ghost" data-d="decline" type="button">Decline</button><button class="btn primary" data-d="allow" type="button" ${leaks.length ? "disabled" : ""}>${checker ? "Allow reading" : "Allow this contact"}</button></div>`;
-  return new Promise((resolve) => {
-    const finish = (d) => { dlg.removeEventListener("cancel", onCancel); dlg.close(); resolve(d); };
-    const onCancel = (e) => { e.preventDefault(); finish("decline"); };
-    dlg.addEventListener("cancel", onCancel);
-    dlg.onclick = (e) => { const d = e.target.closest("[data-d]")?.dataset.d; if (d) finish(d); };
-    dlg.showModal();
-    $("#consent-title").focus();
-  });
-}
+const consentCard = createConsentDialog(dlg);
 
-const tl = $("#timeline");
-const pendingSteps = new Map();
-function step(text, cls = "done", detail = "") {
-  const li = document.createElement("li");
-  li.className = cls;
-  li.innerHTML = `<span>${text}${detail ? `<small>${detail}</small>` : ""}</span>`;
-  tl.append(li);
-  return li;
-}
-
-function onTrace(e) {
-  const ev = e.detail;
-  if (ev.kind === "agent" && ev.phase === "start" && ev.agent === "criteria_writer") step("Drafting criteria <span class='mono'>(Spec Desk, in your browser)</span>", "wait");
-  if (ev.kind === "tool_call" && ev.phase === "end" && ev.tool === "CriteriaDrafter" && ev.origin === location.host && ev.status === "ok") {
-    tl.lastElementChild?.classList.replace("wait", "done");
-    step(`Drafted ${ev.result?.criteria?.length ?? 0} acceptance criteria`);
-    if (Array.isArray(ev.result?.criteria)) {
-      $("#results").innerHTML = criteriaCard({ ...ev.result, origin: ev.origin });
-    }
-  }
-  if (ev.kind === "remote_fetch" && ev.phase === "start") pendingSteps.set(ev.id, step(`Fetching published files from ${esc(ev.peerOrigin)}`, "wait"));
-  if (ev.kind === "remote_fetch" && ev.phase === "end") {
-    pendingSteps.get(ev.id)?.classList.replace("wait", ev.status === "ok" ? "done" : "stop");
-    pendingSteps.delete(ev.id);
-    if (ev.status === "ok") {
-      step(`Validated <span class="mono">${esc(ev.network)}</span> with the reference validator`);
-    } else step("Refused", "stop", esc(ev.error));
-  }
-  if (ev.kind === "peer_artifact" && ev.received) step("Read public artifact", "done", esc(ev.url));
-  if (ev.kind === "remote_call" && ev.phase === "start") pendingSteps.set(ev.id, step(`Running <span class="mono">${esc(ev.network)}</span> in your browser on your router`, "wait", `sly_data sent: ${esc(Object.keys(ev.requestPayload?.sly_data || {}).join(", ") || "none")}`));
-  if (ev.kind === "remote_call" && ev.phase === "end") {
-    pendingSteps.get(ev.id)?.classList.replace("wait", ev.status === "ok" ? "done" : "stop");
-    pendingSteps.delete(ev.id);
-  }
-  if ((ev.kind === "composition_limit" || ev.kind === "composition_skip")) step("Skipped by the runtime", "stop", esc(ev.reason));
-}
+const { step, onTrace, reset: resetTimeline } = createTimeline($("#timeline"), $("#results"));
 
 async function runRelay(approved = false) {
   approved = approved === true;
@@ -274,8 +221,7 @@ if (booted) {
     onTrace,
     onStart: () => {
       for (const selector of ["#approve-plan", "#run", "#swap-btn", "#reset-btn"]) $(selector).disabled = true;
-      tl.innerHTML = "";
-      pendingSteps.clear();
+      resetTimeline();
       $("#results").innerHTML = "";
       renderSlot();
     },
